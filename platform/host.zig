@@ -18,8 +18,8 @@ pub fn main() u8 {
     };
 
     roc__solutionForHost_1_exposed_generic(&parts);
-    stdout.print("Part1: {s}\n", .{parts.part1.asSlice()}) catch unreachable;
-    stdout.print("Part2: {s}\n", .{parts.part2.asSlice()}) catch unreachable;
+    stdout.print("Part1:\n{s}\n\n", .{parts.part1.asSlice()}) catch unreachable;
+    stdout.print("Part2:\n{s}\n", .{parts.part2.asSlice()}) catch unreachable;
     return 0;
 }
 

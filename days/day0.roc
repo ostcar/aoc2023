@@ -8,7 +8,6 @@ app "day0"
 
 solution = (part1, part2)
 
-
 part1 = puzzleInput |> Str.trimEnd
 
 part2 =
