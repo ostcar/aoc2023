@@ -32,17 +32,16 @@ export fn roc_alloc(size: usize, alignment: u32) callconv(.C) ?[*]u8 {
     return bytes.ptr;
 }
 
-export fn roc_realloc(c_ptr: *anyopaque, new_size: usize, old_size: usize, alignment: u32) callconv(.C) ?[*]u8 {
+export fn roc_realloc(ptr: [*]u8, new_size: usize, old_size: usize, alignment: u32) callconv(.C) ?[*]u8 {
     _ = alignment;
-    const old_ptr = @as([*]u8, @ptrCast(c_ptr));
-    const bytes = old_ptr[0..old_size];
+    const bytes = ptr[0..old_size];
     const new_bytes = allocator.realloc(bytes, new_size) catch return null;
     return new_bytes.ptr;
 }
 
-export fn roc_dealloc(c_ptr: *anyopaque, alignment: u32) callconv(.C) void {
+export fn roc_dealloc(ptr: [*]u8, alignment: u32) callconv(.C) void {
     // Do nothing. Will be freed when the app is closed.
-    _ = c_ptr;
+    _ = ptr;
     _ = alignment;
 }
 

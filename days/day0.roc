@@ -2,9 +2,8 @@ app "day0"
     packages {
         pf: "../platform/main.roc",
     }
-    imports ["day0.input" as puzzleInput : Str,]
+    imports ["day0.input" as puzzleInput : Str]
     provides [solution] to pf
-
 
 solution = (part1, part2)
 

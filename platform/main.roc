@@ -1,11 +1,9 @@
 platform "aoc"
-    requires {} {solution : (Str,Str)}
+    requires {} { solution : (Str, Str) }
     exposes []
     packages {}
     imports []
-    provides [
-        solutionForHost,
-    ]
+    provides [solutionForHost]
 
-solutionForHost: (Str, Str)
+solutionForHost : (Str, Str)
 solutionForHost = solution
