@@ -1,0 +1,6 @@
+days/*
+!days/*.roc
+!days/*.input
+platform/*
+!platform/*.zig
+!platform/*.roc
