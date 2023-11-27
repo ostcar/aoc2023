@@ -5,7 +5,10 @@ app "day0"
     imports ["day0.input" as puzzleInput : Str]
     provides [solution] to pf
 
-solution = (part1, part2)
+solution = \part ->
+    when part is
+        Part1 -> part1
+        Part2 -> part2
 
 part1 = puzzleInput |> Str.trimEnd
 

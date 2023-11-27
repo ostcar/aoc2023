@@ -2,24 +2,28 @@ const std = @import("std");
 const builtin = @import("builtin");
 const RocStr = @import("glue").str.RocStr;
 
-const Parts = struct {
-    part1: RocStr,
-    part2: RocStr,
+const Part = enum(c_int) {
+    part1,
+    part2,
 };
 
-extern fn roc__solutionForHost_1_exposed_generic(*Parts) void;
+extern fn roc__solutionForHost_1_exposed_generic(*RocStr, Part) void;
 
 pub fn main() u8 {
     const stdout = std.io.getStdOut().writer();
+    var result = RocStr.empty();
 
-    var parts = Parts{
-        .part1 = RocStr.empty(),
-        .part2 = RocStr.empty(),
-    };
+    var timer = std.time.Timer.start() catch unreachable;
+    roc__solutionForHost_1_exposed_generic(&result, Part.part1);
+    var took = std.fmt.fmtDuration(timer.read());
 
-    roc__solutionForHost_1_exposed_generic(&parts);
-    stdout.print("Part1:\n{s}\n\n", .{parts.part1.asSlice()}) catch unreachable;
-    stdout.print("Part2:\n{s}\n", .{parts.part2.asSlice()}) catch unreachable;
+    stdout.print("Part1 in {}:\n{s}\n\n", .{ took, result.asSlice() }) catch unreachable;
+
+    timer.reset();
+    roc__solutionForHost_1_exposed_generic(&result, Part.part2);
+    took = std.fmt.fmtDuration(timer.read());
+
+    stdout.print("Part2 in {}:\n{s}\n", .{ took, result.asSlice() }) catch unreachable;
     return 0;
 }
 
