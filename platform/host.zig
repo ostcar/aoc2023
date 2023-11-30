@@ -49,6 +49,26 @@ export fn roc_dealloc(ptr: [*]u8, alignment: u32) callconv(.C) void {
     _ = alignment;
 }
 
+export fn roc_panic(msg: *RocStr, tag_id: u32) callconv(.C) void {
+    const stderr = std.io.getStdErr().writer();
+    switch (tag_id) {
+        0 => {
+            stderr.print("Roc standard library", .{}) catch unreachable;
+        },
+        1 => {
+            stderr.print("Application", .{}) catch unreachable;
+        },
+        else => unreachable,
+    }
+    stderr.print(" crashed with message\n\n    {s}\n\nShutting down\n", .{msg.asSlice()}) catch unreachable;
+    std.process.exit(1);
+}
+
+export fn roc_dbg(loc: *RocStr, msg: *RocStr) callconv(.C) void {
+    const stderr = std.io.getStdErr().writer();
+    stderr.print("[{s}] {s}\n", .{ loc.asSlice(), msg.asSlice() }) catch unreachable;
+}
+
 export fn roc_memset(dst: [*]u8, value: u8, size: usize) callconv(.C) void {
     return @memset(dst[0..size], value);
 }
@@ -82,13 +102,4 @@ comptime {
     if (builtin.os.tag == .windows) {
         @export(roc_getppid_windows_stub, .{ .name = "roc_getppid", .linkage = .Strong });
     }
-}
-
-export fn roc_panic(c_ptr: *anyopaque, tag_id: u32) callconv(.C) void {
-    _ = tag_id;
-
-    const stderr = std.io.getStdErr().writer();
-    const msg = @as([*:0]const u8, @ptrCast(c_ptr));
-    stderr.print("Application crashed with message\n\n    {s}\n\nShutting down\n", .{msg}) catch unreachable;
-    std.process.exit(1);
 }
