@@ -13,9 +13,9 @@ app "day0"
 solution = \part ->
     when part is
         Part1 -> part1 puzzleInput
-        Part2 -> part2
+        Part2 -> part2 puzzleInput
 
-part1Example =
+exampleInput =
     """
     Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green
     Game 2: 1 blue, 2 green; 3 green, 4 blue, 1 red; 1 green, 1 blue
@@ -26,7 +26,7 @@ part1Example =
     |> Str.trimStart
 
 expect
-    got = part1 part1Example
+    got = part1 exampleInput
     got == "8"
 
 part1 = \input ->
@@ -45,20 +45,11 @@ checkGame = \(gameNr, game) ->
         game
         (\colorSet ->
             colors = mapColorSet colorSet
-            dbg
-                colors
-
             Bool.not (colors.red > 12 || colors.green > 13 || colors.blue > 14)
         )
     if isOk then
-        dbg
-            T "possible" gameNr
-
         gameNr
     else
-        dbg
-            T "not" gameNr
-
         0
 
 mapColorSet = \rawColorSet ->
@@ -99,4 +90,31 @@ gameParser =
     |> apply (oneOrMore colorSetParser)
     |> skip (maybe (string "\n"))
 
-part2 = "Not implemented yet"
+expect
+    got = part2 exampleInput
+    got == "2286"
+
+part2 = \input ->
+    parseInput input
+    |> List.map rateGame
+    |> List.sum
+    |> Num.toStr
+
+rateGame = \(_, game) ->
+    List.walk
+        game
+        { green: 0, red: 0, blue: 0 }
+        (\state, colorSet ->
+            colors = mapColorSet colorSet
+            maxColorSet state colors
+        )
+    |> mulcolorSet
+
+maxColorSet = \c1, c2 -> {
+    green: Num.max c1.green c2.green,
+    blue: Num.max c1.blue c2.blue,
+    red: Num.max c1.red c2.red,
+}
+
+mulcolorSet = \c ->
+    c.green * c.red * c.blue
