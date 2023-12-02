@@ -91,11 +91,10 @@ firstDigit = \s ->
         8
     else if Str.startsWithScalar s '9' || Str.startsWith s "nine" then
         9
+    else if Str.isEmpty s then
+        crash "empty string"
     else
-        if Str.isEmpty s then
-            crash "empty string"
-        else
-            s |> Str.graphemes |> List.dropFirst 1 |> Str.joinWith "" |> firstDigit
+        s |> Str.graphemes |> List.dropFirst 1 |> Str.joinWith "" |> firstDigit
 
 lastDigit : Str -> U32
 lastDigit = \s ->
@@ -117,8 +116,7 @@ lastDigit = \s ->
         8
     else if Str.endsWith s "9" || Str.endsWith s "nine" then
         9
+    else if Str.isEmpty s then
+        crash "empty string"
     else
-        if Str.isEmpty s then
-            crash "empty string"
-        else      
-            s |> Str.graphemes |> List.dropLast 1 |> Str.joinWith "" |> lastDigit
+        s |> Str.graphemes |> List.dropLast 1 |> Str.joinWith "" |> lastDigit
