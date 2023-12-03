@@ -66,7 +66,11 @@ export fn roc_panic(msg: *RocStr, tag_id: u32) callconv(.C) void {
 
 export fn roc_dbg(loc: *RocStr, msg: *RocStr, src: *RocStr) callconv(.C) void {
     const stderr = std.io.getStdErr().writer();
-    stderr.print("[{s}] {s} = {s}\n", .{ loc.asSlice(), src.asSlice(), msg.asSlice() }) catch unreachable;
+    if (std.mem.eql(u8, src.asSlice(), msg.asSlice())) {
+        stderr.print("[{s}] {s}\n", .{ loc.asSlice(), msg.asSlice() }) catch unreachable;
+    } else {
+        stderr.print("[{s}] {s} = {s}\n", .{ loc.asSlice(), src.asSlice(), msg.asSlice() }) catch unreachable;
+    }
 }
 
 export fn roc_memset(dst: [*]u8, value: u8, size: usize) callconv(.C) void {
