@@ -8,7 +8,7 @@ app "day0"
 solution = \part ->
     when part is
         Part1 -> part1 puzzleInput
-        Part2 -> part2
+        Part2 -> part2 puzzleInput
 
 exampleInput =
     """
@@ -141,9 +141,100 @@ expect
     got = applyMap 53 map
     got == 55
 
-part2 = "Not implemented yet"
+part2 = \input ->
+    (part1Seeds, groupList) = parseInput (Str.trim input)
+    seedRanges = convertSeeds part1Seeds
+    List.walk
+        groupList
+        seedRanges
+        \seedState, group ->
+            applyGroupOnRangeList seedState group
+    |> minSeedFromRangeList
+    |> Num.toStr
+
+expect
+    got = part2 exampleInput
+    got == "46"
+
+Range : { from : U64, rangeLength : U64 }
+
+convertSeeds : List U64 -> List Range
+convertSeeds = \list ->
+    list
+    |> List.chunksOf 2
+    |> List.map \e -> {
+        from: List.first e |> mustSucceed "has first",
+        rangeLength: List.get e 1 |> mustSucceed "has second",
+    }
+
+applyGroupOnRangeList : List Range, Group -> List Range
+applyGroupOnRangeList = \rangeList, group ->
+    List.walk
+        group
+        (rangeList |> List.map \e -> NotApplyed e)
+        \rangeState, map ->
+            List.map
+                rangeState
+                \range ->
+                    when range is
+                        Applyed _ -> [range]
+                        NotApplyed r ->
+                            applyRangeOnMap r map
+            |> listFlatten
+    |> List.map \rangeWithTag ->
+        when rangeWithTag is
+            Applyed v -> v
+            NotApplyed v -> v
+
+applyRangeOnMap : Range, Map -> List [Applyed Range, NotApplyed Range]
+applyRangeOnMap = \{ from, rangeLength }, map ->
+    if from >= map.source && from + rangeLength <= map.source + map.length then
+        [Applyed { from: applyMap from map, rangeLength: rangeLength }]
+    else if from >= map.source && from <= map.source + map.length then
+        newLength = map.source + map.length - from
+        [
+            Applyed { from: applyMap from map, rangeLength: newLength },
+            NotApplyed { from: map.source + map.length + 1, rangeLength: rangeLength - newLength },
+        ]
+    else if from < map.source && from + rangeLength >= map.source && from + rangeLength <= map.source + map.length then
+        newLength = map.source - from
+        [
+            NotApplyed { from: from, rangeLength: newLength },
+            Applyed { from: applyMap map.source map, rangeLength: rangeLength - newLength },
+        ]
+    else if from < map.source && from + rangeLength >= map.source then
+        newLength = map.source - from
+        [
+            NotApplyed { from: from, rangeLength: newLength },
+            Applyed { from: applyMap map.source map, rangeLength: map.length },
+            NotApplyed { from: map.source + map.length + 1, rangeLength: rangeLength - newLength - map.length },
+        ]
+    else if from + rangeLength < map.source || from > map.source + map.length then
+        [
+            NotApplyed { from: from, rangeLength: rangeLength },
+        ]
+    else
+        dbg
+            (from, rangeLength, map)
+
+        crash "not implemented"
+
+minSeedFromRangeList : List Range -> U64
+minSeedFromRangeList = \rangeList ->
+    rangeList
+    |> List.map .from
+    |> List.min
+    |> mustSucceed "not empty"
 
 mustSucceed = \r, str ->
     when r is
         Ok v -> v
         _ -> crash "unreachable at \(str)"
+
+listFlatten : List (List a) -> List a
+listFlatten = \lst ->
+    List.walk
+        lst
+        []
+        \state, elem ->
+            List.concat state elem
