@@ -18,63 +18,87 @@ exampleInput =
 
 expect
     got = part1 exampleInput
-    got == "foo" # "288"
+    got == "288"
 
 part1 = \input ->
-    # [
-    #     (7,9),
-    #     (15,40),
-    #     (30,200),
-    # ]
-    # [
-    #     (63,411),
-    #     (78,1274),
-    #     (94,2047),
-    #     (68,1035),
-    # ]
-    # [(71530, 940200)]
-    [(63789468, 411127420471035)]
-    |> List.map
-        (\(time, distance) ->
-            fn = fnForTime time
-            (lowest, highest) = fn distance
-            highest - lowest + 1
-        )
+    input
+    |> parseInput
+    |> List.map \(time, distance) -> fnForTime time distance
     |> List.product
     |> Num.toStr
 
-# parseInput = \input ->
-#     lines = Str.split "\n"
-#     times =
+parseInput : Str -> List (F64, F64)
+parseInput = \input ->
+    data =
+        input
+        |> Str.split "\n"
+        |> List.map \line ->
+            line
+            |> Str.split " "
+            |> List.dropIf Str.isEmpty
+            |> List.dropFirst 1
+            |> List.map \e -> e |> Str.toF64 |> unwrap
 
-fnForTime : F64 -> (F64 -> (U64, U64))
-fnForTime = \time ->
-    \y ->
-        # y = 7x - x²
-        a = -1
-        b = time
-        c = -1 * y
-        x1 = (-b + Num.sqrt (b * b - 4 * a * c)) / (2 * a)
-        x2 = (-b - Num.sqrt (b * b - 4 * a * c)) / (2 * a)
-        dbg
-            (x1, x2)
+    List.first data
+    |> unwrap
+    |> List.mapWithIndex \_, idx ->
+        (
+            List.get data 0 |> unwrap |> List.get idx |> unwrap,
+            List.get data 1 |> unwrap |> List.get idx |> unwrap,
+        )
 
-        r = (x1 |> Num.floor |> (\v -> v + 1), x2 |> Num.ceiling |> (\v -> v - 1))
-        dbg
-            r
-
-        r
+fnForTime : F64, F64 -> U64
+fnForTime = \time, distance ->
+    # time = distance * x - x²
+    # x1, x2 = (-b ± sqrt ( b² - 4ac)) / 2a
+    a = -1
+    b = time
+    c = -distance
+    lowest =
+        ((-b + Num.sqrt (b * b - 4 * a * c)) / (2 * a))
+        |> Num.floor
+        |> (\v -> v + 1)
+    highest =
+        ((-b - Num.sqrt (b * b - 4 * a * c)) / (2 * a))
+        |> Num.ceiling
+        |> (\v -> v - 1)
+    highest - lowest + 1
 
 expect
-    fn = fnForTime 7
-    (got1, got2) = fn 9
-    got1 == 2 && got2 == 5
+    got = part2 exampleInput
+    got == "71503"
 
 part2 = \input ->
-    "Not implemented yet"
+    input
+    |> parseInput2
+    |> \(time, distance) -> fnForTime time distance
+    |> Num.toStr
 
-debug = \v ->
-    dbg
-        v
+parseInput2 : Str -> (F64, F64)
+parseInput2 = \input ->
+    data =
+        input
+        |> Str.trim
+        |> Str.split "\n"
+        |> List.map \line ->
+            line
+            |> Str.split ":"
+            |> List.get 1
+            |> unwrap
+            |> Str.replaceEach " " ""
+            |> Str.toF64
+            |> unwrap
 
-    v
+    (
+        List.get data 0 |> unwrap,
+        List.get data 1 |> unwrap,
+    )
+
+unwrap = \r ->
+    when r is
+        Ok v -> v
+        Err v ->
+            dbg
+                v
+
+            crash "unreachable"
