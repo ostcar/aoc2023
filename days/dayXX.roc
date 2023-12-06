@@ -1,15 +1,25 @@
-app "day0"
+app "day"
     packages {
         pf: "../platform/main.roc",
     }
-    # imports ["day.input" as puzzleInput : Str]
+    imports ["day.input" as puzzleInput : Str]
     provides [solution] to pf
 
 solution = \part ->
     when part is
-        Part1 -> part1
-        Part2 -> part2
+        Part1 -> part1 puzzleInput
+        Part2 -> part2 puzzleInput
 
-part1 = "Not implemented yet"
+exampleInput =
+    """
+    """
 
-part2 = "Not implemented yet"
+expect
+    got = part1 exampleInput
+    got == ""
+
+part1 = \input ->
+    "Not implemented yet \(input)"
+
+part2 = \input ->
+    "Not implemented yet \(input)"
