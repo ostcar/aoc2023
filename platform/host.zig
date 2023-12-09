@@ -1,11 +1,9 @@
 const std = @import("std");
 const builtin = @import("builtin");
-const RocStr = @import("glue").str.RocStr;
 
-const Part = enum(c_int) {
-    part1,
-    part2,
-};
+const glue = @import("glue.zig");
+const Part = glue.U1;
+const RocStr = glue.RocStr;
 
 extern fn roc__solutionForHost_1_exposed_generic(*RocStr, Part) void;
 
