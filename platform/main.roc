@@ -1,11 +1,13 @@
 platform "aoc"
-    requires {} { solution : [Part1, Part2] -> Str }
+    requires {} { solution : Part -> Str }
     exposes []
     packages {}
     imports []
     provides [solutionForHost]
 
-solutionForHost : [Part1, Part2] -> Str
+Part : [Part1, Part2]
+
+solutionForHost : Part -> Str
 solutionForHost = \part ->
     when part is
         Part1 -> solution Part1

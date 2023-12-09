@@ -2,7 +2,7 @@ const std = @import("std");
 const builtin = @import("builtin");
 
 const glue = @import("glue.zig");
-const Part = glue.U1;
+const Part = glue.Part;
 const RocStr = glue.RocStr;
 
 extern fn roc__solutionForHost_1_exposed_generic(*RocStr, Part) void;
