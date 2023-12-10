@@ -223,9 +223,9 @@ expect
 #
 # The idea is, to replace the loop with the sign '#'. Then start outside, go
 # from one place to its neighbors. If they are not '#', then also replace them
-# with '#'. It like flood the map with water that is only stopped by '#'. The
-# solution are the elements, that reached by the water and therefore are
-# unchanged.
+# with '#'. It is like flooding the map with water, that is only stopped by '#'.
+# The solution is the amount of elements, that are not reached by the water and
+# therefore at the end are not '#'.
 #
 # For this to work, all border fields have to be empty spaces, or they would
 # block the process. To solve this, the input gets a separat ring of empty
@@ -238,9 +238,9 @@ expect
 # ####       .####.
 #            ......
 #
-# But there could be peaces, that can not be reached. The following drawing
-# shows a mace, where there are two places at the top, are outside. But there is
-# no free passage for the "water".
+# But there could be places, that can not be reached. The following drawing
+# shows a mace, where there are two outside places at the top. There is no free
+# passage for the "water".
 #
 # ┌────┐
 # │┌──┐│
@@ -261,9 +261,10 @@ expect
 # │..│.│..│
 # └──┘.└──┘
 #
-# Its the same mace, but this time, the method works.
+# It is the same mace, but this time, the method works.
 #
-# At the end, it has to be scaled down again.
+# At the end, it has to be scaled down again, so only the original inner-places
+# remain.
 part2 = \strInput ->
     mace =
         strInput
