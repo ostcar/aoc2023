@@ -28,8 +28,8 @@ part1 = \input ->
     input
     |> Str.trim
     |> parseInput
-    |> List.map \(line, groups) -> doLine line groups
-    |> debug
+    |> List.map \(line, groups) ->
+        doLine line groups
     |> List.sum
     |> Num.toStr
 
@@ -40,16 +40,14 @@ parseInput = \input ->
     |> List.map \line ->
         Str.split line " "
         |> \parts ->
-            v1 = List.first parts |> unwrap "first part" |> Str.toUtf8 |> List.append '\n'
-            v2 =
-                List.last parts
-                |> unwrap "second part 1"
-                |> Str.split ","
-                |> List.map (\e -> Str.toNat e |> unwrap "second part 2 '\(e)'")
-            (
-                v1,
-                v2,
-            )
+            when parts is
+                [first, last] ->
+                    (
+                        first |> Str.toUtf8 |> List.append '\n',
+                        last |> Str.split "," |> List.map (\e -> Str.toNat e |> unwrap "second part 2 '\(e)'"),
+                    )
+
+                _ -> crash "invalid input"
 
 doLine : List U8, List Nat -> Nat
 doLine = \line, groups ->
@@ -59,8 +57,12 @@ doLine = \line, groups ->
         \inputList, group ->
             List.joinMap
                 inputList
-                \input ->
-                    findAllPlacesForGroup input group
+                (
+                    \input ->
+                        findAllPlacesForGroup input group
+
+                )
+    |> List.dropIf \rest -> List.contains rest '#'
     |> List.len
 
 expect
@@ -81,6 +83,19 @@ expect
     got = doLine input groups
     got == 10
 
+expect
+    input = ".?..??#?##????#...?" |> Str.toUtf8
+    groups = [4, 1]
+    got = doLine input groups
+    got == 1
+
+expect
+    input = "?.#???#? ???#???#." |> Str.toUtf8
+    # nput = "..##..#. ???#??.#." |> Str.toUtf8
+    groups = [2, 1, 4, 1]
+    got = doLine input groups
+    got == 3
+
 findAllPlacesForGroup = \input, group ->
     findAllPlacesForGroupHelper input group []
 
@@ -90,9 +105,9 @@ findAllPlacesForGroupHelper = \input, group, result ->
         when findFirstIndex input group is
             Ok idx ->
                 inputFromIdxWithoutOneChar = List.dropFirst input (idx + 1)
-                beforeInput = List.takeFirst input (idx + group)
-                restInput = List.dropFirst input (idx + group + 1)
-                newResult = List.append result restInput
+                beforeInput = List.takeFirst input (idx + 1)
+
+                newResult = List.append result (List.dropFirst input (idx + group + 1))
 
                 if List.contains beforeInput '#' then
                     newResult
@@ -105,6 +120,11 @@ findAllPlacesForGroupHelper = \input, group, result ->
         result
 
 expect
+    input = "???#???#." |> Str.toUtf8
+    got = findAllPlacesForGroup input 4
+    List.len got == 3
+
+expect
     input = "???.##.\n" |> Str.toUtf8
     got = findAllPlacesForGroup input 1
     got
@@ -112,7 +132,6 @@ expect
         "?.##.\n" |> Str.toUtf8,
         ".##.\n" |> Str.toUtf8,
         "##.\n" |> Str.toUtf8,
-        "\n" |> Str.toUtf8,
     ]
 
 expect
@@ -139,12 +158,24 @@ findFirstIndexHelper : List U8, Nat, Nat -> Result Nat [Impossible]
 findFirstIndexHelper = \input, group, index ->
     if List.len input > group then
         sliceGroup = List.takeFirst input group
-        if List.countIf sliceGroup isDamaged == group && List.get input (group) |> unwrap "deep" |> isOperational then
+        if List.countIf sliceGroup isDamaged == group && List.get input group |> unwrap "deep" |> isOperational then
             Ok index
         else
-            findFirstIndexHelper (List.dropFirst input 1) group (index + 1)
+            when input is
+                [a, .. as rest] ->
+                    if a == '#' then
+                        Err Impossible
+                    else
+                        findFirstIndexHelper rest group (index + 1)
+
+                [] -> crash "impossible"
     else
         Err Impossible
+
+expect
+    input = "#???#." |> Str.toUtf8
+    got = findFirstIndex input 4
+    got == Err Impossible
 
 expect
     input = "???.###\n" |> Str.toUtf8
@@ -176,14 +207,47 @@ expect
     got = findFirstIndex input 3
     got == Ok 1
 
+expect
+    input = ".##\n" |> Str.toUtf8
+    got = findFirstIndex input 1
+    got == Err Impossible
+
 isDamaged = \c ->
     c == '#' || c == '?'
 
 isOperational = \c ->
     c == '.' || c == '?' || c == '\n'
 
+expect
+    got = part2 exampleInput
+    got == "525152"
+
 part2 = \input ->
-    "Not implemented yet"
+    input
+    |> Str.trim
+    |> parseInput
+    |> List.map unfold
+    |> List.map \(line, groups) ->
+        doLine line groups
+    |> List.sum
+    |> Num.toStr
+
+unfold = \(line, groups) ->
+    newLine =
+        line
+        |> List.dropLast 1
+        |> List.repeat 5
+        |> List.map \e -> List.append e '?'
+        |> List.join
+        |> List.dropLast 1
+        |> List.append '\n'
+
+    newGroups =
+        groups
+        |> List.repeat 5
+        |> List.join
+
+    (newLine, newGroups)
 
 unwrap = \r, msg ->
     when r is
