@@ -295,9 +295,3 @@ unwrap = \r, msg ->
     when r is
         Ok v -> v
         _ -> crash "impossible \(msg)"
-
-debug = \v ->
-    dbg
-        v
-
-    v
