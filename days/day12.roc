@@ -53,17 +53,60 @@ doLine : List U8, List Nat -> Nat
 doLine = \line, groups ->
     List.walk
         groups
-        [line]
+        [(line, 1)]
         \inputList, group ->
-            List.joinMap
+            List.map
                 inputList
                 (
-                    \input ->
+                    \(input, cound) ->
                         findAllPlacesForGroup input group
+                        |> List.map \v -> (v, cound)
 
                 )
-    |> List.dropIf \rest -> List.contains rest '#'
-    |> List.len
+            |> resultjoin
+    |> List.dropIf \(rest, _) -> List.contains rest '#'
+    |> List.map .1
+    |> List.sum
+
+resultjoin : List (List (List U8, Nat)) -> List (List U8, Nat)
+resultjoin = \list ->
+    resultjoinHelper list []
+
+resultjoinHelper = \list, result ->
+    when list is
+        [] -> result
+        [sublist, .. as rest] ->
+            resultjoinHelper rest (resultConcat result sublist)
+
+resultConcat : List (a, Nat), List (a, Nat) -> List (a, Nat) where a implements Eq
+resultConcat = \baseList, toIncludeList ->
+    List.walk
+        toIncludeList
+        baseList
+        \state, elem ->
+            resultAppend state elem []
+
+resultAppend : List (a, Nat), (a, Nat), List (a, Nat) -> List (a, Nat) where a implements Eq
+resultAppend = \list, (elem, elemCount), result ->
+    when list is
+        [] -> List.append result (elem, elemCount)
+        [(baseElem, baseCount), .. as rest] ->
+            if elem == baseElem then
+                result
+                |> List.append (baseElem, baseCount + elemCount)
+                |> List.concat rest
+            else
+                resultAppend rest (elem, elemCount) (List.append result (baseElem, baseCount))
+
+expect
+    l1 = [("A", 1), ("B", 1)]
+    l2 = [("B", 1), ("C", 1)]
+    got = resultConcat l1 l2
+    got == [("A", 1), ("B", 2), ("C", 1)]
+
+expect
+    got = resultAppend [("A", 1), ("B", 1)] ("B", 1) []
+    got == [("A", 1), ("B", 2)]
 
 expect
     input = "???.###\n" |> Str.toUtf8
@@ -91,7 +134,6 @@ expect
 
 expect
     input = "?.#???#? ???#???#." |> Str.toUtf8
-    # nput = "..##..#. ???#??.#." |> Str.toUtf8
     groups = [2, 1, 4, 1]
     got = doLine input groups
     got == 3
