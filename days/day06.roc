@@ -97,8 +97,5 @@ parseInput2 = \input ->
 unwrap = \r ->
     when r is
         Ok v -> v
-        Err v ->
-            dbg
-                v
-
+        Err _ ->
             crash "unreachable"
