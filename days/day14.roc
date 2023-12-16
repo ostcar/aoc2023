@@ -140,8 +140,7 @@ expect
 part2 = \input ->
     input
     |> parseInput
-    |> moveCircle 1000
-    # TODO: find the loop
+    |> moveCircle 1000 # TODO: find the loop
     # moveCircle loopPrefix + (1.000.000.000 - loopPrefix) % loopSize
     |> countPoints
     |> Num.toStr
@@ -150,41 +149,42 @@ moveCircle = \bord, num ->
     List.range { start: At 0, end: Before num }
     |> List.walk
         (bord, 0)
-        \(state, oldPoints), _ ->
-            newBord =state
+        \(state, _), _ ->
+            newBord =
+                state
                 |> move North
                 |> move West
                 |> move South
                 |> move East
             points = countPoints newBord
             dbg points
+
             (newBord, points)
     |> .0
 
+# debug = \v ->
+#     dbg v
 
-debug = \v ->
-    dbg v
+#     v
 
-    v
+# debugBord = \b ->
+#     v =
+#         Array2D.toLists b
+#         |> List.map \line ->
+#             List.map line \e ->
+#                 when e is
+#                     Ball -> 'O'
+#                     Rock -> '#'
+#                     Empty -> '.'
+#             |> Str.fromUtf8
+#             |> unwrap
+#         |> Str.joinWith "\n"
 
-debugBord = \b ->
-    v =
-        Array2D.toLists b
-        |> List.map \line ->
-            List.map line \e ->
-                when e is
-                    Ball -> 'O'
-                    Rock -> '#'
-                    Empty -> '.'
-            |> Str.fromUtf8
-            |> unwrap
-        |> Str.joinWith "\n"
+#     dbg v
 
-    dbg v
+#     b
 
-    b
-
-unwrap = \r ->
-    when r is
-        Ok v -> v
-        _ -> crash "impossible"
+# unwrap = \r ->
+#     when r is
+#         Ok v -> v
+#         _ -> crash "impossible"
