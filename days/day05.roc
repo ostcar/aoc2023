@@ -214,9 +214,6 @@ applyRangeOnMap = \{ from, rangeLength }, map ->
             NotApplyed { from: from, rangeLength: rangeLength },
         ]
     else
-        dbg
-            (from, rangeLength, map)
-
         crash "not implemented"
 
 minSeedFromRangeList : List Range -> U64
