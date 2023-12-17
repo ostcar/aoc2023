@@ -27,27 +27,65 @@ pub fn main() u8 {
     return 0;
 }
 
-var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-const allocator = gpa.allocator();
+const Align = 2 * @alignOf(usize);
+extern fn malloc(size: usize) callconv(.C) ?*align(Align) anyopaque;
+extern fn realloc(c_ptr: [*]align(Align) u8, size: usize) callconv(.C) ?*anyopaque;
+extern fn free(c_ptr: [*]align(Align) u8) callconv(.C) void;
+extern fn memcpy(dst: [*]u8, src: [*]u8, size: usize) callconv(.C) void;
+extern fn memset(dst: [*]u8, value: i32, size: usize) callconv(.C) void;
 
-export fn roc_alloc(size: usize, alignment: u32) callconv(.C) ?[*]u8 {
-    _ = alignment;
-    const bytes = allocator.alloc(u8, size) catch return null;
-    return bytes.ptr;
+const DEBUG: bool = false;
+
+export fn roc_alloc(size: usize, alignment: u32) callconv(.C) ?*anyopaque {
+    if (DEBUG) {
+        var ptr = malloc(size);
+        const stdout = std.io.getStdOut().writer();
+        stdout.print("alloc:   {d} (alignment {d}, size {d})\n", .{ ptr, alignment, size }) catch unreachable;
+        return ptr;
+    } else {
+        return malloc(size);
+    }
 }
 
-export fn roc_realloc(ptr: [*]u8, new_size: usize, old_size: usize, alignment: u32) callconv(.C) ?[*]u8 {
-    _ = alignment;
-    const bytes = ptr[0..old_size];
-    const new_bytes = allocator.realloc(bytes, new_size) catch return null;
-    return new_bytes.ptr;
+export fn roc_realloc(c_ptr: *anyopaque, new_size: usize, old_size: usize, alignment: u32) callconv(.C) ?*anyopaque {
+    if (DEBUG) {
+        const stdout = std.io.getStdOut().writer();
+        stdout.print("realloc: {d} (alignment {d}, old_size {d})\n", .{ c_ptr, alignment, old_size }) catch unreachable;
+    }
+
+    return realloc(@as([*]align(Align) u8, @alignCast(@ptrCast(c_ptr))), new_size);
 }
 
-export fn roc_dealloc(ptr: [*]u8, alignment: u32) callconv(.C) void {
-    // Do nothing. Will be freed when the app is closed.
-    _ = ptr;
-    _ = alignment;
+export fn roc_dealloc(c_ptr: *anyopaque, alignment: u32) callconv(.C) void {
+    if (DEBUG) {
+        const stdout = std.io.getStdOut().writer();
+        stdout.print("dealloc: {d} (alignment {d})\n", .{ c_ptr, alignment }) catch unreachable;
+    }
+
+    free(@as([*]align(Align) u8, @alignCast(@ptrCast(c_ptr))));
 }
+
+// var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+// const allocator = gpa.allocator();
+
+// export fn roc_alloc(size: usize, alignment: u32) callconv(.C) ?[*]u8 {
+//     _ = alignment;
+//     const bytes = allocator.alloc(u8, size) catch return null;
+//     return bytes.ptr;
+// }
+
+// export fn roc_realloc(ptr: [*]u8, new_size: usize, old_size: usize, alignment: u32) callconv(.C) ?[*]u8 {
+//     _ = alignment;
+//     const bytes = ptr[0..old_size];
+//     const new_bytes = allocator.realloc(bytes, new_size) catch return null;
+//     return new_bytes.ptr;
+// }
+
+// export fn roc_dealloc(ptr: [*]u8, alignment: u32) callconv(.C) void {
+//     // Do nothing. Will be freed when the app is closed.
+//     _ = ptr;
+//     _ = alignment;
+// }
 
 export fn roc_panic(msg: *RocStr, tag_id: u32) callconv(.C) void {
     const stderr = std.io.getStdErr().writer();
