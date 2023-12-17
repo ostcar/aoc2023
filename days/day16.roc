@@ -35,10 +35,7 @@ expect
 part1 = \input ->
     input
     |> parseInput
-    |> walkBeam
-    |> List.map .0
-    |> Set.fromList
-    |> Set.len
+    |> energiesBeam ({ x: 0, y: 0 }, Right)
     |> Num.toStr
 
 parseInput = \input ->
@@ -57,8 +54,14 @@ parseInput = \input ->
             '-' -> LeftRight
             _ -> crash "invalid input"
 
-walkBeam = \grid ->
-    walkBeamHelper grid [({ x: 0, y: 0 }, Right)] []
+energiesBeam = \beam, start ->
+    beam
+    |> walkBeam start
+    |> List.map .0
+    |> listCountUnique
+
+walkBeam = \grid, start ->
+    walkBeamHelper grid [start] []
 
 walkBeamHelper = \grid, todo, result ->
     when todo is
@@ -122,6 +125,13 @@ listAddUnique = \list, e ->
     else
         List.append list e
 
+listCountUnique = \list ->
+    List.walk
+        list
+        []
+        listAddUnique
+    |> List.len
+
 listTryAddUnique = \list, r ->
     when r is
         Ok e ->
@@ -167,10 +177,57 @@ changeDirection = \fromDirection, mirror ->
         (Bottom, Mirror1) -> Left
         (Bottom, Mirror2) -> Right
 
-part2 = \input ->
-    "Not implemented yet"
+expect
+    got = part2 exampleInput
+    got == "51"
 
-unwrap = \r ->
-    when r is
-        Ok v -> v
-        _ -> crash "impossible"
+part2 = \input ->
+    input
+    |> parseInput
+    |> walkFromSides
+    |> Num.toStr
+
+walkFromSides = \beam ->
+    { dimX, dimY } = Array2D.shape beam
+
+    me1 = List.walk
+        (List.range { start: At 0, end: Before dimY })
+        0
+        \state, y ->
+            dbg ("top", y, state)
+
+            Num.max
+                (energiesBeam beam ({ x: 0, y: y }, Bottom))
+                state
+
+    me2 = List.walk
+        (List.range { start: At 0, end: Before dimY })
+        me1
+        \state, y ->
+            dbg ("bottom", y, state)
+
+            Num.max
+                (energiesBeam beam ({ x: dimX - 1, y: y }, Top))
+                state
+
+    me3 = List.walk
+        (List.range { start: At 0, end: Before dimX })
+        me2
+        \state, x ->
+            dbg ("left", x, state)
+
+            Num.max
+                (energiesBeam beam ({ y: 0, x: x }, Right))
+                state
+
+    me4 = List.walk
+        (List.range { start: At 0, end: Before dimX })
+        me3
+        \state, x ->
+            dbg ("right", x, state)
+
+            Num.max
+                (energiesBeam beam ({ y: dimY - 1, x: x }, Left))
+                state
+
+    me4
