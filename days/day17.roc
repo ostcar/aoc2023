@@ -132,44 +132,43 @@ getNeighbors = \map, index, (directionCount, direction), part ->
                     list
                 else
                     List.append list ({ index & x: index.x + 1 }, updateDirection directionCount direction Bottom)
+            |> \list -> list
 
         Part2 ->
-            if directionCount < 4 then
-                continueDirection map index directionCount direction
-            else
-                List.withCapacity 4
-                |> \list -> if Array2D.isRowStart index || direction == Left && directionCount > 10 then
-                        list
-                    else
-                        List.append list ({ index & y: index.y - 1 }, updateDirection directionCount direction Left)
-                |> \list -> if Array2D.isRowEnd map index || direction == Right && directionCount > 10 then
-                        list
-                    else
-                        List.append list ({ index & y: index.y + 1 }, updateDirection directionCount direction Right)
-                |> \list -> if Array2D.isColStart index || direction == Top && directionCount > 10 then
-                        list
-                    else
-                        List.append list ({ index & x: index.x - 1 }, updateDirection directionCount direction Top)
-                |> \list -> if Array2D.isColEnd map index || direction == Bottom && directionCount > 10 then
-                        list
-                    else
-                        List.append list ({ index & x: index.x + 1 }, updateDirection directionCount direction Bottom)
+            List.withCapacity 4
+            |> \list -> if Array2D.isRowStart index || direction == Left && directionCount > 10 then
+                    list
+                else
+                    # step = if direction == Left then 4 else 1
+                    List.append list ({ index & y: index.y - 1 }, updateDirection directionCount direction Left)
+            |> \list -> if Array2D.isRowEnd map index || direction == Right && directionCount > 10 then
+                    list
+                else
+                    List.append list ({ index & y: index.y + 1 }, updateDirection directionCount direction Right)
+            |> \list -> if Array2D.isColStart index || direction == Top && directionCount > 10 then
+                    list
+                else
+                    List.append list ({ index & x: index.x - 1 }, updateDirection directionCount direction Top)
+            |> \list -> if Array2D.isColEnd map index || direction == Bottom && directionCount > 10 then
+                    list
+                else
+                    List.append list ({ index & x: index.x + 1 }, updateDirection directionCount direction Bottom)
 
-continueDirection = \map, index, count, direction ->
-    when direction is
-        Left if !(Array2D.isRowStart index) ->
-            [({ index & y: index.y - 1 }, (count + 1, direction))]
+# continueDirection = \map, index, count, direction ->
+#     when direction is
+#         Left if !(Array2D.isRowStart index) ->
+#             [({ index & y: index.y - 1 }, (count + 1, direction))]
 
-        Right if !(Array2D.isRowEnd map index) ->
-            [({ index & y: index.y + 1 }, (count + 1, direction))]
+#         Right if !(Array2D.isRowEnd map index) ->
+#             [({ index & y: index.y + 1 }, (count + 1, direction))]
 
-        Top if !(Array2D.isColStart index) ->
-            [({ index & x: index.x - 1 }, (count + 1, direction))]
+#         Top if !(Array2D.isColStart index) ->
+#             [({ index & x: index.x - 1 }, (count + 1, direction))]
 
-        Bottom if !(Array2D.isColEnd map index) ->
-            [({ index & x: index.x + 1 }, (count + 1, direction))]
+#         Bottom if !(Array2D.isColEnd map index) ->
+#             [({ index & x: index.x + 1 }, (count + 1, direction))]
 
-        _ -> []
+#         _ -> []
 
 updateDirection = \directionCount, oldDirection, newDirection ->
     if oldDirection == newDirection then
