@@ -291,11 +291,6 @@ absSmaller = \v1, v2 ->
 otherSign = \v1, v2 ->
     (v1 < 0) != (v2 < 0)
 
-debug = \v ->
-    dbg v
-
-    v
-
 unwrap = \r ->
     when r is
         Ok v -> v
