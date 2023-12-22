@@ -209,9 +209,168 @@ expect
     got = part2 exampleInput
     got == "167409079868000"
 
-part2 = \_ ->
-    "Not implemented yet"
+part2 = \input ->
+    input
+    |> Str.trim
+    |> parseInput2
+    |> \workflows -> runPart workflows part
+    |> sumParts
+    |> Num.toStr
 
+Range : { fromN : U64, toN : U64 }
+MultiPart : { x : Range, m : Range, a : Range, s : Range }
+MultiRule : [Check (MultiPart -> (MultiPart, RuleResult, MultiPart)), Done RuleResult]
+MultiWorkflows : Dict Str (List MultiRule)
+
+parseInput2 : Str -> MultiWorkflows
+parseInput2 = \input ->
+    when Str.split input "\n\n" is
+        [workflows, _] ->
+            parseMultiWorkflows workflows
+
+        _ -> crash "invalid input"
+
+parseMultiWorkflows : Str -> MultiWorkflows
+parseMultiWorkflows = \input ->
+    when parseStr (sepBy multiWorkflowParser (codeunit '\n')) input is
+        Ok parsed ->
+            Dict.fromList parsed
+
+        Err err ->
+            dbg err
+
+            crash "can not parse multi workflows"
+
+multiWorkflowParser : Parser (List U8) (Str, List MultiRule)
+multiWorkflowParser =
+    const (\name -> \rules -> (name |> Str.fromUtf8 |> unwrap, rules))
+    |> keep (chompUntil '{')
+    |> skip (codeunit '{')
+    |> keep (sepBy multiRuleParser (codeunit ','))
+    |> skip (codeunit '}')
+
+multiRuleParser : Parser (List U8) MultiRule
+multiRuleParser =
+    oneOf [
+        multiConditionParser,
+        lastRuleParser |> map \e -> Done e,
+    ]
+
+multiConditionParser : Parser (List U8) MultiRule
+multiConditionParser =
+    const
+        (\attr -> \sign -> \number -> \next ->
+                        Check
+                            \part ->
+                                (p1, p2) = splitRange part attr sign number
+                                (p1, next, p2)
+
+        )
+    |> keep
+        (
+            oneOf [
+                codeunit 'x' |> map \_ -> X,
+                codeunit 'm' |> map \_ -> M,
+                codeunit 'a' |> map \_ -> A,
+                codeunit 's' |> map \_ -> S,
+            ]
+        )
+    |> keep
+        (
+            oneOf [
+                codeunit '>' |> map \_ -> Gt,
+                codeunit '<' |> map \_ -> Lt,
+            ]
+        )
+    |> keep (digits |> map Num.toU64)
+    |> skip (codeunit ':')
+    |> keep (lastRuleParser)
+
+runMultiPart : MultiWorkflows -> List MultiPart
+runMultiPart = \workflows ->
+    part = {
+        x: { fromN: 1, toN: 4000 },
+        m: { fromN: 1, toN: 4000 },
+        a: { fromN: 1, toN: 4000 },
+        s: { fromN: 1, toN: 4000 },
+    }
+    applyMultiWorkflows workflows part (Next "in")
+
+applyMultiWorkflows : MultiWorkflows, MultiPart, RuleResult, List MultiPart -> List MultiPart
+applyMultiWorkflows = \workflows, part, cur, result ->
+    when cur is
+        Accept -> List.append result part
+        Reject -> []
+        Next key ->
+            ruleSet = Dict.get workflows key |> unwrap
+            next = applyMultiWorkflow ruleSet part
+
+            applyWorkflows workflows part next
+
+
+applyMultiWorkflow = \workflow, part ->
+    when workflow is
+        [] -> crash "no rule left"
+        [rule, .. as rest] ->
+            when rule is
+                Check fn ->
+                    (p1, next, p2) = fn part
+                    applyMultiWorkflow 
+
+                        Found r -> r
+                        NotFound -> applyMultiWorkflow rest part
+
+                Done r -> r
+
+splitRange = \range, attr, sign, number ->
+    when (attr, sign) is
+        (X, Lt) ->
+            (
+                { range & x: { fromN: range.x.fromN, toN: number - 1 } },
+                { range & x: { toN: range.x.toN, fromN: number } },
+            )
+
+        (X, Gt) ->
+            (
+                { range & x: { toN: range.x.toN, fromN: number + 1 } },
+                { range & x: { fromN: range.x.fromN, toN: number } },
+            )
+
+        (M, Lt) ->
+            (
+                { range & m: { fromN: range.m.fromN, toN: number - 1 } },
+                { range & m: { toN: range.m.toN, fromN: number } },
+            )
+
+        (M, Gt) ->
+            (
+                { range & m: { toN: range.m.toN, fromN: number + 1 } },
+                { range & m: { fromN: range.m.fromN, toN: number } },
+            )
+
+        (A, Lt) ->
+            (
+                { range & a: { fromN: range.a.fromN, toN: number - 1 } },
+                { range & a: { toN: range.a.toN, fromN: number } },
+            )
+
+        (A, Gt) ->
+            (
+                { range & a: { toN: range.a.toN, fromN: number + 1 } },
+                { range & a: { fromN: range.a.fromN, toN: number } },
+            )
+
+        (S, Lt) ->
+            (
+                { range & s: { fromN: range.s.fromN, toN: number - 1 } },
+                { range & s: { toN: range.s.toN, fromN: number } },
+            )
+
+        (S, Gt) ->
+            (
+                { range & s: { toN: range.s.toN, fromN: number + 1 } },
+                { range & s: { fromN: range.s.fromN, toN: number } },
+            )
 unwrap = \r ->
     when r is
         Ok v -> v
