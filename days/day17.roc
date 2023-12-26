@@ -38,7 +38,7 @@ expect
 part1 = \input ->
     input
     |> parseInput
-    |> shortestPath Part1
+    |> shortestPath 0 3
     |> Num.toStr
 
 parseInput : Str -> Array2D.Array2D U64
@@ -53,145 +53,109 @@ parseInput = \input ->
             Num.toU64 (c - '0')
     |> Array2D.fromLists FitShortest
 
-Direction : (U8, [Left, Right, Top, Bottom])
-MapResult : Array2D.Array2D [Visited U64, Unvisited U64 Direction]
+shortestPath = \map, minSteps, maxSteps ->
+    queue = [
+        (0, { x: 0, y: 0 }, Right, 0),
+    ]
 
-shortestPath = \map, part ->
-    firstValue = Array2D.get map { x: 0, y: 0 } |> unwrap
-    startNode =
-        Array2D.repeat (Unvisited Num.maxU64 (0, Left)) (Array2D.shape map)
-        |> Array2D.set { x: 0, y: 0 } (Unvisited firstValue (1, Right))
+    seen = List.withCapacity (Array2D.size map)
 
-    mapResult = shortestPathHelper map { x: 0, y: 0 } startNode part
+    target =
+        { dimX, dimY } = Array2D.shape map
+        { x: dimX - 1, y: dimY - 1 }
 
-    dbg debugNodes mapResult
+    shortestPathHelper map queue seen target minSteps maxSteps
 
-    { dimX, dimY } = Array2D.shape mapResult
-    endIndex = { x: dimX - 1, y: dimY - 1 }
-    when Array2D.get mapResult endIndex is
-        Ok (Visited n) -> n
-        _ ->
-            dbg Array2D.get mapResult endIndex
+expect
+    map = Array2D.fromLists
+        [
+            [1, 2, 3],
+            [1, 2, 3],
+            [1, 2, 3],
+        ]
+        FitShortest
+    got = shortestPath map 0 10
+    got == 7
 
-            crash "this does not look good"
+# shortestPathHelper : Array2D U64, List (U64, Array2D.Index, [Top, Bottom, Left, Right], U64), Set (Array2D.Index, [Top, Bottom, Left, Right], U64), Array2D.Index, U64, U64 -> U64
+shortestPathHelper = \map, queue, seen, target, minSteps, maxSteps ->
+    ((cost, index, direction, numSteps), restQueue) = getShortest queue
 
-shortestPathHelper : Array2D.Array2D U64, Array2D.Index, MapResult, [Part1, Part2] -> MapResult
-shortestPathHelper = \map, curIndex, nodes, part ->
-    when Array2D.get nodes curIndex is
-        Ok (Unvisited curVal direction) ->
-            updated =
-                List.walk
-                    (getNeighbors map curIndex direction part)
-                    nodes
-                    \state, (neighborIndex, newDirection) ->
-                        Array2D.update
-                            state
-                            neighborIndex
-                            \neighborValue ->
-                                newDistance = curVal + (Array2D.get map neighborIndex |> unwrap)
-                                when neighborValue is
-                                    Visited _ ->
-                                        neighborValue
-
-                                    Unvisited oldDistance _ ->
-                                        if oldDistance > newDistance then
-                                            Unvisited newDistance newDirection
-                                        else
-                                            neighborValue
-                |> Array2D.set
-                    curIndex
-                    (Visited curVal)
-
-            when findSmalestIndex updated is
-                Ok idx ->
-                    shortestPathHelper map idx updated part
-
-                Err NotFound ->
-                    updated
-
-        _ ->
-            crash "impossible value in nodes"
-
-getNeighbors = \map, index, (directionCount, direction), part ->
-    when part is
-        Part1 ->
-            List.withCapacity 4
-            |> \list -> if Array2D.isRowStart index || direction == Left && directionCount > 3 then
-                    list
-                else
-                    List.append list ({ index & y: index.y - 1 }, updateDirection directionCount direction Left)
-            |> \list -> if Array2D.isRowEnd map index || direction == Right && directionCount > 3 then
-                    list
-                else
-                    List.append list ({ index & y: index.y + 1 }, updateDirection directionCount direction Right)
-            |> \list -> if Array2D.isColStart index || direction == Top && directionCount > 3 then
-                    list
-                else
-                    List.append list ({ index & x: index.x - 1 }, updateDirection directionCount direction Top)
-            |> \list -> if Array2D.isColEnd map index || direction == Bottom && directionCount > 3 then
-                    list
-                else
-                    List.append list ({ index & x: index.x + 1 }, updateDirection directionCount direction Bottom)
-            |> \list -> list
-
-        Part2 ->
-            List.withCapacity 4
-            |> \list -> if Array2D.isRowStart index || direction == Left && directionCount > 10 then
-                    list
-                else
-                    # step = if direction == Left then 4 else 1
-                    List.append list ({ index & y: index.y - 1 }, updateDirection directionCount direction Left)
-            |> \list -> if Array2D.isRowEnd map index || direction == Right && directionCount > 10 then
-                    list
-                else
-                    List.append list ({ index & y: index.y + 1 }, updateDirection directionCount direction Right)
-            |> \list -> if Array2D.isColStart index || direction == Top && directionCount > 10 then
-                    list
-                else
-                    List.append list ({ index & x: index.x - 1 }, updateDirection directionCount direction Top)
-            |> \list -> if Array2D.isColEnd map index || direction == Bottom && directionCount > 10 then
-                    list
-                else
-                    List.append list ({ index & x: index.x + 1 }, updateDirection directionCount direction Bottom)
-
-# continueDirection = \map, index, count, direction ->
-#     when direction is
-#         Left if !(Array2D.isRowStart index) ->
-#             [({ index & y: index.y - 1 }, (count + 1, direction))]
-
-#         Right if !(Array2D.isRowEnd map index) ->
-#             [({ index & y: index.y + 1 }, (count + 1, direction))]
-
-#         Top if !(Array2D.isColStart index) ->
-#             [({ index & x: index.x - 1 }, (count + 1, direction))]
-
-#         Bottom if !(Array2D.isColEnd map index) ->
-#             [({ index & x: index.x + 1 }, (count + 1, direction))]
-
-#         _ -> []
-
-updateDirection = \directionCount, oldDirection, newDirection ->
-    if oldDirection == newDirection then
-        (directionCount + 1, oldDirection)
+    if index == target && numSteps >= minSteps then
+        cost
+    else if List.contains seen (index, direction, numSteps) then
+        shortestPathHelper map restQueue seen target minSteps maxSteps
     else
-        (1, newDirection)
+        newSeen = List.append seen (index, direction, numSteps)
+        newQueue = updateQueue restQueue map index direction numSteps minSteps maxSteps cost
+        shortestPathHelper map newQueue newSeen target minSteps maxSteps
 
-findSmalestIndex = \mapResult ->
-    smalest =
-        Array2D.walk
-            mapResult
-            (Num.maxU64, { x: 0, y: 0 })
-            { direction: Forwards }
-            \(state, stateIdx), value, index ->
-                when value is
-                    Unvisited v _ if v < state ->
-                        (v, index)
+# sortQueue = \queue ->
+#     List.sortWith queue \a, b ->
+#         Num.compare a.0 b.0
 
-                    _ -> (state, stateIdx)
-    if smalest.0 == Num.maxU64 then
-        Err NotFound
-    else
-        Ok smalest.1
+getShortest = \queue ->
+    (minIndex, _) =
+        List.walkWithIndex
+            queue
+            (0, Num.maxU64)
+            \(stateIndex, stateCost), elem, index ->
+                cost = elem.0
+                if cost < stateCost then
+                    (index, cost)
+                else
+                    (stateIndex, stateCost)
+    (List.get queue minIndex |> unwrap, List.dropAt queue minIndex)
+
+updateQueue = \queue, map, index, direction, numSteps, minSteps, maxSteps, cost ->
+    List.withCapacity 3
+    |> \directions -> (
+            if numSteps < minSteps then
+                directions
+            else
+                when direction is
+                    Left | Right -> List.concat directions [Bottom, Top]
+                    Top | Bottom -> List.concat directions [Right, Left]
+        )
+    |> \directions ->
+        if numSteps < maxSteps then
+            List.append directions direction
+        else
+            directions
+    |> List.keepOks \newDir ->
+        newIndex index map newDir
+        |> Result.map \idx -> (idx, newDir)
+    |> List.walk
+        queue
+        \state, (newIdx, newDirection) ->
+            newCost = cost + (Array2D.get map newIdx |> Result.withDefault 0)
+            List.append state (newCost, newIdx, newDirection, if direction == newDirection then numSteps + 1 else 1)
+
+newIndex = \index, map, direction ->
+    when direction is
+        Left ->
+            if Array2D.isRowStart index then
+                Err OutOfRange
+            else
+                Ok { index & y: index.y - 1 }
+
+        Right ->
+            if Array2D.isRowEnd map index then
+                Err OutOfRange
+            else
+                Ok { index & y: index.y + 1 }
+
+        Top ->
+            if Array2D.isColStart index then
+                Err OutOfRange
+            else
+                Ok { index & x: index.x - 1 }
+
+        Bottom ->
+            if Array2D.isColEnd map index then
+                Err OutOfRange
+            else
+                Ok { index & x: index.x + 1 }
 
 expect
     got = part2 exampleInput
@@ -200,29 +164,10 @@ expect
 part2 = \input ->
     input
     |> parseInput
-    |> shortestPath Part2
+    |> shortestPath 4 10
     |> Num.toStr
 
 unwrap = \r ->
     when r is
         Ok v -> v
-        _ -> crash "inpossible"
-
-debugNodes : Array2D.Array2D [Visited U64, Unvisited U64 Direction] -> Str
-debugNodes = \nodes ->
-    nodes
-    |> Array2D.toLists
-    |> List.map \line ->
-        List.map line \c ->
-            when c is
-                Visited v ->
-                    formattedNum v
-
-                Unvisited _ _ -> " uuu"
-        |> Str.joinWith ""
-    |> Str.joinWith "\n"
-    |> Str.withPrefix "\n"
-
-formattedNum = \n ->
-    s = Num.toStr n
-    Str.concat (Str.repeat " " (4 - Str.countUtf8Bytes s)) s
+        _ -> crash "impossible"
