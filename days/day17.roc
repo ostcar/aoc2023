@@ -56,6 +56,7 @@ parseInput = \input ->
 shortestPath = \map, minSteps, maxSteps ->
     queue = [
         (0, { x: 0, y: 0 }, Right, 0),
+        (0, { x: 0, y: 0 }, Bottom, 0),
     ]
 
     seen = List.withCapacity (Array2D.size map)
@@ -77,7 +78,6 @@ expect
     got = shortestPath map 0 10
     got == 7
 
-# shortestPathHelper : Array2D U64, List (U64, Array2D.Index, [Top, Bottom, Left, Right], U64), Set (Array2D.Index, [Top, Bottom, Left, Right], U64), Array2D.Index, U64, U64 -> U64
 shortestPathHelper = \map, queue, seen, target, minSteps, maxSteps ->
     ((cost, index, direction, numSteps), restQueue) = getShortest queue
 
