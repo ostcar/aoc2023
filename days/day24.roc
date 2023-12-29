@@ -136,8 +136,117 @@ expect
     got = twoLines line1 line2
     got == Parallel
 
-part2 = \_ ->
-    "Not implemented yet"
+expect
+    got = part2 exampleInput
+    got == "47"
+
+part2 = \input ->
+    input
+    |> parseInput
+    |> findStoneStartPosition
+    |> vToCoordinates
+    |> \{ x, y, z } ->
+        (x |> qToNumDen |> .0) + (y |> qToNumDen |> .0) + (z |> qToNumDen |> .0)
+    |> Num.toStr
+
+Plane a : (Vector a, Vector a, Vector a)
+
+findStoneStartPosition : List (Line a) -> Vector a
+findStoneStartPosition = \lines ->
+    plane = buildPlane lines
+    line = findLineOnPlane plane lines
+    findLineStartPosition line lines
+
+buildPlane : List (Line a) -> Plane a
+buildPlane = \lines ->
+    ((p1, v1), (p2, _)) = findParallel lines
+    (p1, v1, vDiv p2 p1)
+
+findParallel = \lines ->
+    when lines is
+        [line1, .. as rest] ->
+            found =
+                List.walkUntil
+                    rest
+                    NotFound
+                    \_, line2 ->
+                        if twoLines line1 line2 == Parallel then
+                            Break (Found line2)
+                        else
+                            Continue NotFound
+            when found is
+                Found line2 ->
+                    (line1, line2)
+
+                NotFound ->
+                    findParallel rest
+
+        _ -> crash "no parallel lines"
+
+findLineOnPlane : Plane a, List (Line a) -> Line a
+findLineOnPlane = \plane, lines ->
+    planeNormal = planeNormalVector plane
+
+    points = List.map lines \line -> crossPlaneLine planeNormal line
+
+    dbg points
+
+    crash "todo"
+
+PlaneNormalForm a : { v : Vector a, d : Rational a }
+
+planeNormalVector : Plane a -> PlaneNormalForm a
+planeNormalVector = \(p, v, w) ->
+    { x: p1, y: p2, z: p3 } = vToCoordinates p
+    { x: a1, y: a2, z: a3 } = vToCoordinates v
+    { x: b1, y: b2, z: b3 } = vToCoordinates w
+
+    a = qSub (qMul a2 b3) (qMul a3 b2)
+    b = qSub (qMul a3 b1) (qMul a1 b3)
+    c = qSub (qMul a1 b2) (qMul a2 b1)
+
+    d =
+        (qMul a p1)
+        |> qAdd (qMul b p2)
+        |> qAdd (qMul c p3)
+
+    { v: vFromRational a b c, d: d }
+
+crossPlaneLine : PlaneNormalForm a, Line a -> Result (Vector a) [NoCrossing]
+crossPlaneLine = \{ v: planeV, d }, (lp, lv) ->
+    { x: p1, y: p2, z: p3 } = vToCoordinates lp
+    { x: v1, y: v2, z: v3 } = vToCoordinates lv
+    { x: a, y: b, z: c } = vToCoordinates planeV
+
+    # a * (p1 + r * v1) + b * (p2 + r * v2) + c * (p3 + r * v3) == d
+    # p1 * a + r * v1 * a + p2 * b + r * v2 * b + p3 * c + r * v3 * c == d
+    # r * v1 * a + r * v2 * b + r * v3 * c == d - p1 * a - p2 * b - p3 * c
+    # r = (d - p1 * a - p2 * b - p3 * c) / (v1 * a + v2 * b + v3 * c)
+
+    r = (d |> qSub (qMul p1 a) |> qSub (qMul p2 b) |> qSub (qMul p3 c)) |> qDiv ((qMul v1 a) |> qAdd (qMul v2 b) |> qAdd (qMul v3 c))
+
+    if qIsInvalid r then
+        Err NoCrossing
+    else
+        Ok (vAdd lp (vMul r lv))
+
+expect
+    plane = (vFromInts 0 0 0, vFromInts 1 0 0, vFromInts 0 1 0)
+    line = (vFromInts 1 1 1, vFromInts 0 0 2)
+    planeNormal = planeNormalVector plane
+    got = crossPlaneLine planeNormal line
+
+    got == Ok (vFromInts 1 1 0)
+
+expect
+    plane = (vFromInts 0 0 0, vFromInts 1 0 0, vFromInts 0 1 0)
+    line = (vFromInts 0 0 0, vFromInts 1 0 0)
+    planeNormal = planeNormalVector plane
+    got = crossPlaneLine planeNormal line
+
+    got == Err NoCrossing
+
+findLineStartPosition : Line a, List (Line a) -> Vector a
 
 unwrap = \r ->
     when r is
@@ -147,13 +256,16 @@ unwrap = \r ->
 Rational a := (Int a, Int a)
     implements [
         Eq { isEq: qEq },
-        # Inspect {
-        #     toInspector: toInspectorRational,
-        # },
+        Inspect {
+            toInspector: toInspectorRational,
+        },
     ]
 
-# qToStr = \@Rational (a, b) ->
-#     "\(a |> Num.toStr) / \(b |> Num.toStr)"
+toInspectorRational = \@Rational (a, b) ->
+    f0 <- Inspect.custom
+    "\(a |> Num.toStr) / \(b |> Num.toStr)"
+    |> Inspect.str
+    |> Inspect.apply f0
 
 qFromInt : Int a -> Rational a
 qFromInt = \i ->
@@ -163,6 +275,9 @@ qFromNumDen : Int a, Int a -> Rational a
 qFromNumDen = \n, d ->
     @Rational (n, d)
     |> qNormalize
+
+qToNumDen = \@Rational (n, d) ->
+    (n, d)
 
 qNormalize = \@Rational (a, b) ->
     if b == 0 then
@@ -188,6 +303,9 @@ qGe = \@Rational (a, b), @Rational (c, d) ->
 
 qIsPos = \@Rational (a, b) ->
     Num.isPositive a == Num.isPositive b
+
+qIsInvalid = \@Rational (_, d) ->
+    d == 0
 
 expect
     qFromInt 1 != qFromInt 2
@@ -221,10 +339,23 @@ qDiv = \@Rational (a, b), @Rational (c, d) ->
 Vector a := (Rational a, Rational a, Rational a)
     implements [
         Eq { isEq: vEq },
+        Inspect {
+            toInspector: toInspectorVector,
+        },
     ]
+
+toInspectorVector = \@Vector (x, y, z) ->
+    f0 <- Inspect.custom
+    [x, y, z]
+    |> List.map Inspect.toInspector
+    |> Inspect.tuple
+    |> Inspect.apply f0
 
 vFromInts = \n1, n2, n3 ->
     @Vector (qFromInt n1, qFromInt n2, qFromInt n3)
+
+vFromRational = \q1, q2, q3 ->
+    @Vector (q1, q2, q3)
 
 vToCoordinates = \@Vector (x, y, z) ->
     { x: x, y: y, z: z }
