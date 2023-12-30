@@ -68,7 +68,7 @@ parseInput = \input ->
 countPlaces = \instructions ->
     List.walk
         instructions
-        (0,0,0)
+        (0, 0, 0)
         \(y, result, meterSum), (direction, meter) ->
             when direction is
                 Right -> (y + meter, result, meterSum + meter)
