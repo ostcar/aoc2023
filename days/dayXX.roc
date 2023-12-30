@@ -21,5 +21,5 @@ expect
 part1 = \input ->
     "Not implemented yet \(input)"
 
-part2 = \input ->
-    "Not implemented yet \(input)"
+part2 = \_input ->
+    "Not implemented yet"
