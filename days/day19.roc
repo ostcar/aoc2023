@@ -42,7 +42,6 @@ expect
 
 part1 = \input ->
     input
-    |> Str.trim
     |> parseInput
     |> \(workflows, parts) -> List.keepIf parts \part -> runPart workflows part
     |> sumParts
@@ -55,7 +54,7 @@ Workflows : Dict Str (List Rule)
 
 parseInput : Str -> (Workflows, List Part)
 parseInput = \input ->
-    when Str.split input "\n\n" is
+    when input |> Str.trim |> Str.split "\n\n" is
         [workflows, parts] ->
             (
                 parseWorkflows workflows,
@@ -211,82 +210,16 @@ expect
 
 part2 = \input ->
     input
-    |> Str.trim
-    |> parseInput2
-    |> \workflows -> runPart workflows part
-    |> sumParts
+    |> parseInput
+    |> .0
+    |> \workflows -> runMultiPart workflows
+    |> countMultipart
     |> Num.toStr
 
 Range : { fromN : U64, toN : U64 }
 MultiPart : { x : Range, m : Range, a : Range, s : Range }
-MultiRule : [Check (MultiPart -> (MultiPart, RuleResult, MultiPart)), Done RuleResult]
-MultiWorkflows : Dict Str (List MultiRule)
 
-parseInput2 : Str -> MultiWorkflows
-parseInput2 = \input ->
-    when Str.split input "\n\n" is
-        [workflows, _] ->
-            parseMultiWorkflows workflows
-
-        _ -> crash "invalid input"
-
-parseMultiWorkflows : Str -> MultiWorkflows
-parseMultiWorkflows = \input ->
-    when parseStr (sepBy multiWorkflowParser (codeunit '\n')) input is
-        Ok parsed ->
-            Dict.fromList parsed
-
-        Err err ->
-            dbg err
-
-            crash "can not parse multi workflows"
-
-multiWorkflowParser : Parser (List U8) (Str, List MultiRule)
-multiWorkflowParser =
-    const (\name -> \rules -> (name |> Str.fromUtf8 |> unwrap, rules))
-    |> keep (chompUntil '{')
-    |> skip (codeunit '{')
-    |> keep (sepBy multiRuleParser (codeunit ','))
-    |> skip (codeunit '}')
-
-multiRuleParser : Parser (List U8) MultiRule
-multiRuleParser =
-    oneOf [
-        multiConditionParser,
-        lastRuleParser |> map \e -> Done e,
-    ]
-
-multiConditionParser : Parser (List U8) MultiRule
-multiConditionParser =
-    const
-        (\attr -> \sign -> \number -> \next ->
-                        Check
-                            \part ->
-                                (p1, p2) = splitRange part attr sign number
-                                (p1, next, p2)
-
-        )
-    |> keep
-        (
-            oneOf [
-                codeunit 'x' |> map \_ -> X,
-                codeunit 'm' |> map \_ -> M,
-                codeunit 'a' |> map \_ -> A,
-                codeunit 's' |> map \_ -> S,
-            ]
-        )
-    |> keep
-        (
-            oneOf [
-                codeunit '>' |> map \_ -> Gt,
-                codeunit '<' |> map \_ -> Lt,
-            ]
-        )
-    |> keep (digits |> map Num.toU64)
-    |> skip (codeunit ':')
-    |> keep (lastRuleParser)
-
-runMultiPart : MultiWorkflows -> List MultiPart
+runMultiPart : Workflows -> List MultiPart
 runMultiPart = \workflows ->
     part = {
         x: { fromN: 1, toN: 4000 },
@@ -294,33 +227,38 @@ runMultiPart = \workflows ->
         a: { fromN: 1, toN: 4000 },
         s: { fromN: 1, toN: 4000 },
     }
-    applyMultiWorkflows workflows part (Next "in")
+    applyMultiWorkflows workflows [(part, Next "in")] []
 
-applyMultiWorkflows : MultiWorkflows, MultiPart, RuleResult, List MultiPart -> List MultiPart
-applyMultiWorkflows = \workflows, part, cur, result ->
-    when cur is
-        Accept -> List.append result part
-        Reject -> []
-        Next key ->
-            ruleSet = Dict.get workflows key |> unwrap
-            next = applyMultiWorkflow ruleSet part
+applyMultiWorkflows : Workflows, List (MultiPart, RuleResult), List MultiPart -> List MultiPart
+applyMultiWorkflows = \workflows, query, result ->
+    when query is
+        [(part, ruleResult), .. as rest] ->
+            (newQuery, newResult) =
+                when ruleResult is
+                    Accept -> (rest, List.append result part)
+                    Reject -> (rest, result)
+                    Next key ->
+                        ruleSet = Dict.get workflows key |> unwrap
+                        next = applyMultiWorkflow ruleSet part []
+                        (List.concat rest next, result)
 
-            applyWorkflows workflows part next
+            applyMultiWorkflows workflows newQuery newResult
 
+        [] -> result
 
-applyMultiWorkflow = \workflow, part ->
-    when workflow is
+applyMultiWorkflow : List Rule, MultiPart, List (MultiPart, RuleResult) -> List (MultiPart, RuleResult)
+applyMultiWorkflow = \ruleList, part, result ->
+    when ruleList is
         [] -> crash "no rule left"
         [rule, .. as rest] ->
             when rule is
-                Check fn ->
-                    (p1, next, p2) = fn part
-                    applyMultiWorkflow 
+                Check attr sign number next ->
+                    (r1, r2) = splitRange part attr sign number
+                    newResult = List.append result (r1, next)
+                    applyMultiWorkflow rest r2 newResult
 
-                        Found r -> r
-                        NotFound -> applyMultiWorkflow rest part
-
-                Done r -> r
+                Done next ->
+                    List.append result (part, next)
 
 splitRange = \range, attr, sign, number ->
     when (attr, sign) is
@@ -371,6 +309,15 @@ splitRange = \range, attr, sign, number ->
                 { range & s: { toN: range.s.toN, fromN: number + 1 } },
                 { range & s: { fromN: range.s.fromN, toN: number } },
             )
+
+countMultipart = \list ->
+    List.map list \{ x, m, a, s } ->
+        countRange x * countRange m * countRange a * countRange s
+    |> List.sum
+
+countRange = \{ fromN, toN } ->
+    toN - fromN + 1
+
 unwrap = \r ->
     when r is
         Ok v -> v
