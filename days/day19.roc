@@ -50,7 +50,7 @@ part1 = \input ->
 
 Part : { x : U64, m : U64, a : U64, s : U64 }
 RuleResult : [Next Str, Accept, Reject]
-Rule : [Check (Part -> [Found RuleResult, NotFound]), Done RuleResult]
+Rule : [Check [X, M, A, S] [Gt, Lt] U64 RuleResult, Done RuleResult]
 Workflows : Dict Str (List Rule)
 
 parseInput : Str -> (Workflows, List Part)
@@ -98,30 +98,21 @@ ruleParser =
 
 conditionParser : Parser (List U8) Rule
 conditionParser =
-    const
-        (\attr -> \sign -> \number -> \next ->
-                        Check
-                            (\part ->
-                                if sign (attr part) number then
-                                    Found next
-                                else
-                                    NotFound)
-
-        )
+    const (\attr -> \sign -> \number -> \next -> Check attr sign number next)
     |> keep
         (
             oneOf [
-                codeunit 'x' |> map \_ -> .x,
-                codeunit 'm' |> map \_ -> .m,
-                codeunit 'a' |> map \_ -> .a,
-                codeunit 's' |> map \_ -> .s,
+                codeunit 'x' |> map \_ -> X,
+                codeunit 'm' |> map \_ -> M,
+                codeunit 'a' |> map \_ -> A,
+                codeunit 's' |> map \_ -> S,
             ]
         )
     |> keep
         (
             oneOf [
-                codeunit '>' |> map \_ -> Num.isGt,
-                codeunit '<' |> map \_ -> Num.isLt,
+                codeunit '>' |> map \_ -> Gt,
+                codeunit '<' |> map \_ -> Lt,
             ]
         )
     |> keep (digits |> map Num.toU64)
@@ -186,12 +177,27 @@ applyWorkflow = \workflow, part ->
         [] -> crash "no rule left"
         [rule, .. as rest] ->
             when rule is
-                Check fn ->
-                    when fn part is
-                        Found r -> r
-                        NotFound -> applyWorkflow rest part
+                Check attr sign number next ->
+                    if partAttr part attr |> compareBySign sign number then
+                        next
+                    else
+                        applyWorkflow rest part
 
                 Done r -> r
+
+partAttr = \part, attr ->
+    fn =
+        when attr is
+            X -> .x
+            M -> .m
+            A -> .a
+            S -> .s
+    fn part
+
+compareBySign = \a, sign, b ->
+    when sign is
+        Gt -> a > b
+        Lt -> a < b
 
 sumParts : List Part -> U64
 sumParts = \parts ->
