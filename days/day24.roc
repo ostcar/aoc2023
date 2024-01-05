@@ -67,9 +67,11 @@ parseInput = \input ->
             _ -> crash "line has more then two parts: \(line)"
 
 removeZ = \lines ->
+    fn = \v -> vUpdate v (\x, y, _ -> (x, y, qFromInt 0))
+
     lines
     |> List.map \(point, direction) ->
-        (vRemoveZ point, vRemoveZ direction)
+        (fn point, fn direction)
 
 countIntercept : List (Line a), Int a, Int a -> Nat
 countIntercept = \lines, fromC, toC ->
@@ -101,7 +103,6 @@ Line a : (Vector a, Vector a)
 lineToVec = \t, (p, v) ->
     vAdd p (vMul t v)
 
-# twoLines : (Vector a, Vector a), (Vector a, Vector a) -> [Parallel, Intercept (Rational a, Rational a) , Skew]
 twoLines = \(p1, v1), (p2, v2) ->
     if v1 == v2 then
         Parallel
@@ -141,112 +142,194 @@ expect
     got == "47"
 
 part2 = \input ->
-    input
-    |> parseInput
-    |> findStoneStartPosition
-    |> vToCoordinates
-    |> \{ x, y, z } ->
-        (x |> qToNumDen |> .0) + (y |> qToNumDen |> .0) + (z |> qToNumDen |> .0)
-    |> Num.toStr
+    when input |> parseInput is
+        # First line from test makes problems
+        [_, line1, line2, line3, ..] ->
+            solutionWithTreyLinesWithFrac line1 line2 line3
+            |> Num.toStr
 
-Plane a : (Vector a, Vector a, Vector a)
+        _ -> crash "need trey lines"
 
-findStoneStartPosition : List (Line a) -> Vector a
-findStoneStartPosition = \lines ->
-    plane = buildPlane lines
-    line = findLineOnPlane plane lines
-    findLineStartPosition line lines
+solutionWithTreyLinesWithFrac = \(a0, av), (b0, bv), (c0, cv) ->
+    # This is a translation of: https://github.com/DeadlyRedCube/AdventOfCode/blob/1f9d0a3e3b7e7821592244ee51bce5c18cf899ff/2023/AOC2023/D24.h#L66-L294
+    { x: a0x, y: a0y, z: a0z } = vToFraq a0
+    { x: avx, y: avy, z: avz } = vToFraq av
+    { x: b0x, y: b0y, z: b0z } = vToFraq b0
+    { x: bvx, y: bvy, z: bvz } = vToFraq bv
+    { x: c0x, y: c0y, z: c0z } = vToFraq c0
+    { x: cvx, y: cvy, z: cvz } = vToFraq cv
 
-buildPlane : List (Line a) -> Plane a
-buildPlane = \lines ->
-    ((p1, v1), (p2, _)) = findParallel lines
-    (p1, v1, vDiv p2 p1)
+    abvx = avx - bvx
+    abvy = avy - bvy
+    abvz = avz - bvz
 
-findParallel = \lines ->
-    when lines is
-        [line1, .. as rest] ->
-            found =
-                List.walkUntil
-                    rest
-                    NotFound
-                    \_, line2 ->
-                        if twoLines line1 line2 == Parallel then
-                            Break (Found line2)
-                        else
-                            Continue NotFound
-            when found is
-                Found line2 ->
-                    (line1, line2)
+    acvx = avx - cvx
+    acvy = avy - cvy
+    acvz = avz - cvz
 
-                NotFound ->
-                    findParallel rest
+    ab0x = a0x - b0x
+    ab0y = a0y - b0y
+    ab0z = a0z - b0z
 
-        _ -> crash "no parallel lines"
+    ac0x = a0x - c0x
+    ac0y = a0y - c0y
+    ac0z = a0z - c0z
 
-findLineOnPlane : Plane a, List (Line a) -> Line a
-findLineOnPlane = \plane, lines ->
-    planeNormal = planeNormalVector plane
+    h0 = (b0y * bvx - b0x * bvy) - (a0y * avx - a0x * avy)
+    h1 = (c0y * cvx - c0x * cvy) - (a0y * avx - a0x * avy)
+    h2 = (b0x * bvz - b0z * bvx) - (a0x * avz - a0z * avx)
+    h3 = (c0x * cvz - c0z * cvx) - (a0x * avz - a0z * avx)
+    h4 = (b0z * bvy - b0y * bvz) - (a0z * avy - a0y * avz)
+    h5 = (c0z * cvy - c0y * cvz) - (a0z * avy - a0y * avz)
 
-    points = List.map lines \line -> crossPlaneLine planeNormal line
+    pxx = acvx * ab0z - abvx * ac0z
+    pyy = acvy * ab0x - abvy * ac0x
+    pzz = acvz * ab0y - abvz * ac0y
 
-    dbg points
+    pxz = abvx * ac0x - acvx * ab0x
+    pzy = abvz * ac0z - acvz * ab0z
+    pyx = abvy * ac0y - acvy * ab0y
 
-    crash "todo"
+    pxc = abvx * h3 - acvx * h2
+    pyc = abvy * h1 - acvy * h0
+    pzc = abvz * h5 - acvz * h4
 
-PlaneNormalForm a : { v : Vector a, d : Rational a }
+    pxd = acvx * abvz - abvx * acvz
+    pyd = acvy * abvx - abvy * acvx
+    pzd = acvz * abvy - abvz * acvy
 
-planeNormalVector : Plane a -> PlaneNormalForm a
-planeNormalVector = \(p, v, w) ->
-    { x: p1, y: p2, z: p3 } = vToCoordinates p
-    { x: a1, y: a2, z: a3 } = vToCoordinates v
-    { x: b1, y: b2, z: b3 } = vToCoordinates w
+    qz0 = (abvy / pxd) * pxz
+    qx0 = (abvy / pxd) * pxx - (abvx / pyd) * pyx - ab0y
+    qy0 = ab0x - (abvx / pyd) * pyy
+    r0 = h0 - (abvy / pxd) * pxc + (abvx / pyd) * pyc
 
-    a = qSub (qMul a2 b3) (qMul a3 b2)
-    b = qSub (qMul a3 b1) (qMul a1 b3)
-    c = qSub (qMul a1 b2) (qMul a2 b1)
+    qy1 = (abvx / pzd) * pzy
+    qz1 = (abvx / pzd) * pzz - (abvz / pxd) * pxz - ab0x
+    qx1 = ab0z - (abvz / pxd) * pxx
+    r1 = h2 - (abvx / pzd) * pzc + (abvz / pxd) * pxc
 
-    d =
-        (qMul a p1)
-        |> qAdd (qMul b p2)
-        |> qAdd (qMul c p3)
+    qx2 = (abvz / pyd) * pyx
+    qy2 = (abvz / pyd) * pyy - (abvy / pzd) * pzy - ab0z
+    qz2 = ab0y - (abvy / pzd) * pzz
+    r2 = h4 - (abvz / pyd) * pyc + (abvy / pzd) * pzc
 
-    { v: vFromRational a b c, d: d }
+    qz =
+        ((qx1 * qy0 - qx0 * qy1) * (qx2 * r0 - qx0 * r2) - (qx2 * qy0 - qx0 * qy2) * (qx1 * r0 - qx0 * r1))
+        / ((qx2 * qy0 - qx0 * qy2) * (qx0 * qz1 - qx1 * qz0) - (qx1 * qy0 - qx0 * qy1) * (qx0 * qz2 - qx2 * qz0))
 
-crossPlaneLine : PlaneNormalForm a, Line a -> Result (Vector a) [NoCrossing]
-crossPlaneLine = \{ v: planeV, d }, (lp, lv) ->
-    { x: p1, y: p2, z: p3 } = vToCoordinates lp
-    { x: v1, y: v2, z: v3 } = vToCoordinates lv
-    { x: a, y: b, z: c } = vToCoordinates planeV
+    qy = ((qx0 * qz1 - qx1 * qz0) * qz + (qx1 * r0 - qx0 * r1)) / (qx1 * qy0 - qx0 * qy1)
 
-    # a * (p1 + r * v1) + b * (p2 + r * v2) + c * (p3 + r * v3) == d
-    # p1 * a + r * v1 * a + p2 * b + r * v2 * b + p3 * c + r * v3 * c == d
-    # r * v1 * a + r * v2 * b + r * v3 * c == d - p1 * a - p2 * b - p3 * c
-    # r = (d - p1 * a - p2 * b - p3 * c) / (v1 * a + v2 * b + v3 * c)
+    qx = (r0 - qy0 * qy - qz0 * qz) / qx0
 
-    r = (d |> qSub (qMul p1 a) |> qSub (qMul p2 b) |> qSub (qMul p3 c)) |> qDiv ((qMul v1 a) |> qAdd (qMul v2 b) |> qAdd (qMul v3 c))
+    px = (pxz * qz + pxx * qx + pxc) / pxd
+    py = (pyx * qx + pyy * qy + pyc) / pyd
+    pz = (pzy * qy + pzz * qz + pzc) / pzd
 
-    if qIsInvalid r then
-        Err NoCrossing
-    else
-        Ok (vAdd lp (vMul r lv))
+    Num.round px + Num.round py + Num.round pz
+
+solutionWithTreyLines = \(a0, av), (b0, bv), (c0, cv) ->
+    { x: a0x, y: a0y, z: a0z } = vToCoordinates a0
+    { x: avx, y: avy, z: avz } = vToCoordinates av
+    { x: b0x, y: b0y, z: b0z } = vToCoordinates b0
+    { x: bvx, y: bvy, z: bvz } = vToCoordinates bv
+    { x: c0x, y: c0y, z: c0z } = vToCoordinates c0
+    { x: cvx, y: cvy, z: cvz } = vToCoordinates cv
+
+    abvx = qSub avx bvx
+    abvy = qSub avy bvy
+    abvz = qSub avz bvz
+
+    acvx = qSub avx cvx
+    acvy = qSub avy cvy
+    acvz = qSub avz cvz
+
+    ab0x = qSub a0x b0x
+    ab0y = qSub a0y b0y
+    ab0z = qSub a0z b0z
+
+    ac0x = qSub a0x c0x
+    ac0y = qSub a0y c0y
+    ac0z = qSub a0z c0z
+
+    h0 = ((qMul b0y bvx) |> qSub (qMul b0x bvy)) |> qSub ((qMul a0y avx) |> qSub (qMul a0x avy))
+    h1 = ((qMul c0y cvx) |> qSub (qMul c0x cvy)) |> qSub ((qMul a0y avx) |> qSub (qMul a0x avy))
+    h2 = ((qMul b0x bvz) |> qSub (qMul b0z bvx)) |> qSub ((qMul a0x avz) |> qSub (qMul a0z avx))
+    h3 = ((qMul c0x cvz) |> qSub (qMul c0z cvx)) |> qSub ((qMul a0x avz) |> qSub (qMul a0z avx))
+    h4 = ((qMul b0z bvy) |> qSub (qMul b0y bvz)) |> qSub ((qMul a0z avy) |> qSub (qMul a0y avz))
+    h5 = ((qMul c0z cvy) |> qSub (qMul c0y cvz)) |> qSub ((qMul a0z avy) |> qSub (qMul a0y avz))
+
+    pxx = (qMul acvx ab0z) |> qSub (qMul abvx ac0z)
+    pyy = (qMul acvy ab0x) |> qSub (qMul abvy ac0x)
+    pzz = (qMul acvz ab0y) |> qSub (qMul abvz ac0y)
+
+    pxz = (qMul abvx ac0x) |> qSub (qMul acvx ab0x)
+    pzy = (qMul abvz ac0z) |> qSub (qMul acvz ab0z)
+    pyx = (qMul abvy ac0y) |> qSub (qMul acvy ab0y)
+
+    pxc = (qMul abvx h3) |> qSub (qMul acvx h2)
+    pyc = (qMul abvy h1) |> qSub (qMul acvy h0)
+    pzc = (qMul abvz h5) |> qSub (qMul acvz h4)
+
+    pxd = (qMul acvx abvz) |> qSub (qMul abvx acvz)
+    pyd = (qMul acvy abvx) |> qSub (qMul abvy acvx)
+    pzd = (qMul acvz abvy) |> qSub (qMul abvz acvy)
+
+    qz0 = (qDiv abvy pxd) |> qMul pxz
+    qx0 = ((qDiv abvy pxd) |> qMul pxx) |> qSub ((qDiv abvx pyd) |> qMul pyx) |> qSub ab0y
+    qy0 = ab0x |> qSub ((qDiv abvx pyd) |> qMul pyy)
+    r0 = h0 |> qSub ((qDiv abvy pxd) |> qMul pxc) |> qAdd ((qDiv abvx pyd) |> qMul pyc)
+
+    qy1 = (qDiv abvx pzd) |> qMul pzy
+    qz1 = ((qDiv abvx pzd) |> qMul pzz) |> qSub ((qDiv abvz pxd) |> qMul pxz) |> qSub ab0x
+    qx1 = ab0z |> qSub ((qDiv abvz pxd) |> qMul pxx)
+    r1 = h2 |> qSub ((qDiv abvx pzd) |> qMul pzc) |> qAdd ((qDiv abvz pxd) |> qMul pxc)
+
+    qx2 = (qDiv abvz pyd) |> qMul pyx
+    qy2 = ((qDiv abvz pyd) |> qMul pyy) |> qSub ((qDiv abvy pzd) |> qMul pzy) |> qSub ab0z
+    qz2 = ab0y |> qSub ((qDiv abvy pzd) |> qMul pzz)
+    r2 = h4 |> qSub ((qDiv abvz pyd) |> qMul pyc) |> qAdd ((qDiv abvy pzd) |> qMul pzc)
+
+    qzp11 = (qMul qx1 qy0) |> qSub (qMul qx0 qy1)
+
+    qzp12 = (qMul qx2 r0) |> qSub (qMul qx0 r2)
+
+    qzp13 = (qMul qx2 qy0) |> qSub (qMul qx0 qy2)
+
+    qzp14 = (qMul qx1 r0) |> qSub (qMul qx0 r1)
+
+    qzpart1 = (qMul qzp11 qzp12) |> qSub (qMul qzp13 qzp14)
+
+    qzp21 = (qMul qx2 qy0) |> qSub (qMul qx0 qy2)
+    qzp22 = (qMul qx0 qz1) |> qSub (qMul qx1 qz0)
+    qzp23 = (qMul qx1 qy0) |> qSub (qMul qx0 qy1)
+    qzp24 = (qMul qx0 qz2) |> qSub (qMul qx2 qz0)
+
+    qzpart2 = (qMul qzp21 qzp22) |> qSub (qMul qzp23 qzp24)
+
+    qz = qDiv qzpart1 qzpart2
+
+    qy = ((qMul ((qMul qx0 qz1) |> qSub (qMul qx1 qz0)) qz) |> qAdd ((qMul qx1 r0) |> qSub (qMul qx0 r1))) |> qSub ((qMul qx1 qy0) |> qSub (qMul qx0 qy1))
+
+    qx = (r0 |> qSub (qMul qy0 qy) |> qSub (qMul qz0 qz)) |> qDiv qx0
+
+    px = ((qMul pxz qz) |> qAdd (qMul pxx qx) |> qAdd pxc) |> qDiv pxd
+    py = ((qMul pyx qx) |> qAdd (qMul pyy qy) |> qAdd pyc) |> qDiv pyd
+    pz = ((qMul pzy qy) |> qAdd (qMul pzz qz) |> qAdd pzc) |> qDiv pzd
+
+    v1 = qToNumDen px |> .0
+    v2 = qToNumDen py |> .0
+    v3 = qToNumDen pz |> .0
+
+    v1 + v2 + v3
 
 expect
-    plane = (vFromInts 0 0 0, vFromInts 1 0 0, vFromInts 0 1 0)
-    line = (vFromInts 1 1 1, vFromInts 0 0 2)
-    planeNormal = planeNormalVector plane
-    got = crossPlaneLine planeNormal line
+    when exampleInput |> parseInput is
+        # First line from test makes problems
+        [_, line1, line2, line3, ..] ->
+            got = solutionWithTreyLines line1 line2 line3
+            got == 47
 
-    got == Ok (vFromInts 1 1 0)
-
-expect
-    plane = (vFromInts 0 0 0, vFromInts 1 0 0, vFromInts 0 1 0)
-    line = (vFromInts 0 0 0, vFromInts 1 0 0)
-    planeNormal = planeNormalVector plane
-    got = crossPlaneLine planeNormal line
-
-    got == Err NoCrossing
-
-findLineStartPosition : Line a, List (Line a) -> Vector a
+        _ -> crash "need trey lines"
 
 unwrap = \r ->
     when r is
@@ -279,6 +362,9 @@ qFromNumDen = \n, d ->
 qToNumDen = \@Rational (n, d) ->
     (n, d)
 
+qToFrac = \@Rational (n, d) ->
+    (n |> Num.toF64) / (d |> Num.toF64)
+
 qNormalize = \@Rational (a, b) ->
     if b == 0 then
         @Rational (a, b)
@@ -303,9 +389,6 @@ qGe = \@Rational (a, b), @Rational (c, d) ->
 
 qIsPos = \@Rational (a, b) ->
     Num.isPositive a == Num.isPositive b
-
-qIsInvalid = \@Rational (_, d) ->
-    d == 0
 
 expect
     qFromInt 1 != qFromInt 2
@@ -354,11 +437,11 @@ toInspectorVector = \@Vector (x, y, z) ->
 vFromInts = \n1, n2, n3 ->
     @Vector (qFromInt n1, qFromInt n2, qFromInt n3)
 
-vFromRational = \q1, q2, q3 ->
-    @Vector (q1, q2, q3)
-
 vToCoordinates = \@Vector (x, y, z) ->
     { x: x, y: y, z: z }
+
+vToFraq = \@Vector (x, y, z) ->
+    { x: qToFrac x, y: qToFrac y, z: qToFrac z }
 
 vEq = \@Vector (v1, v2, v3), @Vector (w1, w2, w3) ->
     t1 = qDiv v1 w1
@@ -408,9 +491,10 @@ vSub = \@Vector (v1, v2, v3), @Vector (w1, w2, w3) ->
         qSub v3 w3,
     )
 
-vRemoveZ = \@Vector (v1, v2, _) ->
+vUpdate = \@Vector (v1, v2, v3), fn ->
+    (n1, n2, n3) = fn v1 v2 v3
     @Vector (
-        v1,
-        v2,
-        qFromInt 0,
+        n1,
+        n2,
+        n3,
     )
