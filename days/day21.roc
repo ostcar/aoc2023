@@ -11,7 +11,7 @@ app "day"
 
 solution = \part ->
     when part is
-        Part1 -> part1 puzzleInput 64
+        Part1 -> "deactivated" # part1 puzzleInput 64
         Part2 -> part2 puzzleInput 26501365
 
 exampleInput =
@@ -85,6 +85,8 @@ walk = \(array, start), nextFn, steps ->
 
 walkHelper : Map, { dimX : I64, dimY : I64 }, (Map, { dimX : I64, dimY : I64 }, Index -> Set Index), Set Index, U64 -> Nat
 walkHelper = \array, shape, nextFn, cur, steps ->
+    dbg (steps, Set.len cur)
+
     if steps == 0 then
         Set.len cur
     else
@@ -172,15 +174,21 @@ expect
     got = part2 exampleInput 10
     got == "50"
 
-expect
-    got = part2 exampleInput 5000
-    got == "16733044"
+# expect
+#     got = part2 exampleInput 5000
+#     got == "16733044"
 
-part2 = \input, steps ->
-    input
-    |> parseInput
-    |> walk nextIndexPart2 steps
-    |> Num.toStr
+part2 = \input, _steps ->
+    v =
+        input
+        |> parseInput
+        |> findFull
+    # |> walk nextIndexPart2 steps
+    # |> Num.toStr
+
+    dbg v
+
+    "todo"
 
 nextIndexPart2 = \array, shape, index ->
     list = List.withCapacity 4
@@ -224,6 +232,43 @@ toIndex = \{ dimX, dimY }, { x, y } -> {
     x: mod x dimX |> Num.toNat,
     y: mod y dimY |> Num.toNat,
 }
+
+findFull = \(array, start) ->
+    shape =
+        { dimX, dimY } = Array2D.shape array
+        { dimX: dimX |> Num.toI64, dimY: dimY |> Num.toI64 }
+    fromMid = findFullHelper array shape (Set.single start) 0 { even: 0, odd: 0 }
+    fromTopLeft = findFullHelper array shape (Set.single { x: 0, y: 0 }) 0 { even: 0, odd: 0 }
+    fromTopMid = findFullHelper array shape (Set.single { x: 0, y: start.y }) 0 { even: 0, odd: 0 }
+    fromTopRight = findFullHelper array shape (Set.single { x: 0, y: shape.dimY - 1 }) 0 { even: 0, odd: 0 }
+    fromMidLeft = findFullHelper array shape (Set.single { x: start.x, y: 0 }) 0 { even: 0, odd: 0 }
+    fromMidRight = findFullHelper array shape (Set.single { x: start.x, y: shape.dimY - 1 }) 0 { even: 0, odd: 0 }
+    fromBottomLeft = findFullHelper array shape (Set.single { x: shape.dimX - 1, y: 0 }) 0 { even: 0, odd: 0 }
+    fromBottomMid = findFullHelper array shape (Set.single { x: shape.dimX - 1, y: start.y }) 0 { even: 0, odd: 0 }
+    fromBottomRight = findFullHelper array shape (Set.single { x: shape.dimX - 1, y: shape.dimY - 1 }) 0 { even: 0, odd: 0 }
+    { fromMid, fromTopLeft, fromTopMid, fromTopRight, fromMidLeft, fromMidRight, fromBottomLeft, fromBottomMid, fromBottomRight }
+
+findFullHelper = \array, shape, cur, steps, { even, odd } ->
+    next = Set.walk
+        cur
+        (Set.empty {})
+        \result, index ->
+            Set.union result (nextIndex array shape index)
+
+    nextLen = Set.len next
+
+    nextFoo =
+        if Num.isEven steps then
+            { even: nextLen, odd }
+        else
+            { odd: nextLen, even }
+
+    # dbg (steps, even, odd, nextFoo)
+
+    if nextFoo == { even, odd } then
+        steps
+    else
+        findFullHelper array shape next (steps + 1) nextFoo
 
 mod = \a, b ->
     ((a % b) + b) % b
