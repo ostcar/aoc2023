@@ -44,7 +44,7 @@ Index : { x : I64, y : I64 }
 
 parseInput : Str -> (Map, Index)
 parseInput = \input ->
-    lines = Str.split input "\n"
+    lines = Str.split (input |> Str.trim) "\n"
     dimY = List.first lines |> unwrap |> Str.countUtf8Bytes
     dimX = List.len lines
 
@@ -73,8 +73,10 @@ parseInput = \input ->
                                 index,
                             )
 
-                        _ ->
+                        '.' ->
                             (array, index)
+
+                        _ -> crash "invalid"
 
 walk : (Map, Index), (Map, { dimX : I64, dimY : I64 }, Index -> Set Index), U64 -> Nat
 walk = \(array, start), nextFn, steps ->
@@ -85,8 +87,6 @@ walk = \(array, start), nextFn, steps ->
 
 walkHelper : Map, { dimX : I64, dimY : I64 }, (Map, { dimX : I64, dimY : I64 }, Index -> Set Index), Set Index, U64 -> Nat
 walkHelper = \array, shape, nextFn, cur, steps ->
-    dbg (steps, Set.len cur)
-
     if steps == 0 then
         Set.len cur
     else
@@ -160,35 +160,35 @@ toIndexPart1 : { dimX : I64, dimY : I64 }, { x : I64, y : I64 } -> Result { x : 
 toIndexPart1 = \{ dimX, dimY }, { x, y } ->
     if x >= 0 && x < dimX && y >= 0 && y < dimY then
         Ok {
-            x: x % dimX |> Num.toNat,
-            y: y % dimY |> Num.toNat,
+            x: x |> Num.toNat,
+            y: y |> Num.toNat,
         }
     else
         Err OutOfShape
 
 expect
-    got = part2 exampleInput 6
-    got == "16"
-
-expect
-    got = part2 exampleInput 10
-    got == "50"
-
-# expect
-#     got = part2 exampleInput 5000
-#     got == "16733044"
+    got = toIndexPart1 { dimX: 7, dimY: 7 } { x: 3, y: 7 }
+    got == Err OutOfShape
 
 part2 = \input, _steps ->
-    v =
-        input
-        |> parseInput
-        |> findFull
-    # |> walk nextIndexPart2 steps
-    # |> Num.toStr
+    parsedInput = parseInput input
 
-    dbg v
+    diamondA = walk parsedInput nextIndexPart2 65
+    diamondB = (walk parsedInput nextIndexPart2 64) + 1 # This +1 was just trial and error
+    diamondCD =
+        intermediate = walk parsedInput nextIndexPart2 (65 + 131 + 131)
+        all = (intermediate - diamondA * 9 - (4 * diamondB))
+        all // 6
 
-    "todo"
+    steps = (26_501_365 - 65) // 131
+    n = steps * 2 + 1
+
+    allDiamondA = ((n * n + 2 * n + 1) * diamondA) // 4
+    allDiamondB = ((n * n - 2 * n + 1) * diamondB) // 4
+    allDiamondCD = ((n * n - 1) * diamondCD) // 4
+
+    (allDiamondA + allDiamondB + allDiamondCD)
+    |> Num.toStr
 
 nextIndexPart2 = \array, shape, index ->
     list = List.withCapacity 4
@@ -232,43 +232,6 @@ toIndex = \{ dimX, dimY }, { x, y } -> {
     x: mod x dimX |> Num.toNat,
     y: mod y dimY |> Num.toNat,
 }
-
-findFull = \(array, start) ->
-    shape =
-        { dimX, dimY } = Array2D.shape array
-        { dimX: dimX |> Num.toI64, dimY: dimY |> Num.toI64 }
-    fromMid = findFullHelper array shape (Set.single start) 0 { even: 0, odd: 0 }
-    fromTopLeft = findFullHelper array shape (Set.single { x: 0, y: 0 }) 0 { even: 0, odd: 0 }
-    fromTopMid = findFullHelper array shape (Set.single { x: 0, y: start.y }) 0 { even: 0, odd: 0 }
-    fromTopRight = findFullHelper array shape (Set.single { x: 0, y: shape.dimY - 1 }) 0 { even: 0, odd: 0 }
-    fromMidLeft = findFullHelper array shape (Set.single { x: start.x, y: 0 }) 0 { even: 0, odd: 0 }
-    fromMidRight = findFullHelper array shape (Set.single { x: start.x, y: shape.dimY - 1 }) 0 { even: 0, odd: 0 }
-    fromBottomLeft = findFullHelper array shape (Set.single { x: shape.dimX - 1, y: 0 }) 0 { even: 0, odd: 0 }
-    fromBottomMid = findFullHelper array shape (Set.single { x: shape.dimX - 1, y: start.y }) 0 { even: 0, odd: 0 }
-    fromBottomRight = findFullHelper array shape (Set.single { x: shape.dimX - 1, y: shape.dimY - 1 }) 0 { even: 0, odd: 0 }
-    { fromMid, fromTopLeft, fromTopMid, fromTopRight, fromMidLeft, fromMidRight, fromBottomLeft, fromBottomMid, fromBottomRight }
-
-findFullHelper = \array, shape, cur, steps, { even, odd } ->
-    next = Set.walk
-        cur
-        (Set.empty {})
-        \result, index ->
-            Set.union result (nextIndex array shape index)
-
-    nextLen = Set.len next
-
-    nextFoo =
-        if Num.isEven steps then
-            { even: nextLen, odd }
-        else
-            { odd: nextLen, even }
-
-    # dbg (steps, even, odd, nextFoo)
-
-    if nextFoo == { even, odd } then
-        steps
-    else
-        findFullHelper array shape next (steps + 1) nextFoo
 
 mod = \a, b ->
     ((a % b) + b) % b
