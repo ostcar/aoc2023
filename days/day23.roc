@@ -1,13 +1,10 @@
-app "day"
-    packages {
-        pf: "../platform/main.roc",
-        array2d: "https://github.com/mulias/roc-array2d/releases/download/v0.1.0/ssMT0bDIv-qE7d_yNUyCByGQHvpNkQJZsGUS6xEFsIY.tar.br",
-    }
-    imports [
-        "day23.input" as puzzleInput : Str,
-        array2d.Array2D.{ Array2D },
-    ]
-    provides [solution] to pf
+app [solution] {
+    pf: platform "../platform/main.roc",
+    array2d: "https://github.com/mulias/roc-array2d/releases/download/v0.3.0/je3X2cSdUa6b24fO1SS_vGNS5MwU-a-3r1niP_7iG6k.tar.br",
+}
+
+import "day23.input" as puzzleInput : Str
+import array2d.Array2D exposing [Array2D]
 
 solution = \part ->
     when part is
@@ -56,18 +53,18 @@ Map : Array2D [Empty, Wall, OneWay [Up, Left, Down, Right]]
 parseInput : Str -> Map
 parseInput = \input ->
     lines = input |> Str.trim |> Str.split "\n"
-    dimY = List.first lines |> unwrap |> Str.countUtf8Bytes
-    dimX = List.len lines
-    initArray = Array2D.init { dimY, dimX } \_ -> Empty
+    cols = List.first lines |> unwrap |> Str.countUtf8Bytes
+    rows = List.len lines
+    initArray = Array2D.init { cols, rows } \_ -> Empty
 
     List.walkWithIndex
         lines
         initArray
-        \state, line, x ->
+        \state, line, row ->
             List.walkWithIndex
                 (Str.toUtf8 line)
                 state
-                \array, elem, y ->
+                \array, elem, col ->
                     v =
                         when elem is
                             '#' -> Wall
@@ -78,15 +75,15 @@ parseInput = \input ->
                             '^' -> OneWay Up
                             _ -> crash "invalid element"
 
-                    Array2D.set array { x, y } v
+                    Array2D.set array { row, col } v
 
 findLongest : Map -> U64
 findLongest = \map ->
-    findLongestHelper ([[{ x: 0, y: 1 }]], 0) map (findGoal map)
+    findLongestHelper ([[{ row: 0, col: 1 }]], 0) map (findGoal map)
 
-Way : List Array2D.Index
+#Way : List Array2D.Index
 
-findLongestHelper : (List Way, U64), Map, Array2D.Index -> U64
+#findLongestHelper : (List Way, U64), Map, Array2D.Index -> U64
 findLongestHelper = \(cur, found), map, goal ->
     if List.len cur == 0 then
         found
@@ -108,13 +105,13 @@ findLongestHelper = \(cur, found), map, goal ->
         |> findLongestHelper map goal
 
 findGoal = \map ->
-    { dimX, dimY } = Array2D.shape map
-    { x: dimX - 1, y: dimY - 2 }
+    { rows, cols } = Array2D.shape map
+    { row: rows - 1, col: cols - 2 }
 
 nextSteps = \map, goal, way ->
     currentIndex = List.last way |> unwrap
     directions =
-        if currentIndex == { x: 0, y: 1 } then
+        if currentIndex == { row: 0, col: 1 } then
             [Down]
         else
             when Array2D.get map currentIndex is
@@ -127,10 +124,10 @@ nextSteps = \map, goal, way ->
         \state, direction ->
             nextIdx =
                 when direction is
-                    Up -> { currentIndex & x: currentIndex.x - 1 }
-                    Down -> { currentIndex & x: currentIndex.x + 1 }
-                    Left -> { currentIndex & y: currentIndex.y - 1 }
-                    Right -> { currentIndex & y: currentIndex.y + 1 }
+                    Up -> { currentIndex & row: currentIndex.row - 1 }
+                    Down -> { currentIndex & row: currentIndex.row + 1 }
+                    Left -> { currentIndex & col: currentIndex.col - 1 }
+                    Right -> { currentIndex & col: currentIndex.col + 1 }
 
             if nextIdx == goal then
                 List.append state (Finish (List.len way |> Num.toU64))
