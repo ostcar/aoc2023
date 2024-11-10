@@ -1,14 +1,13 @@
-app "day0"
-    packages {
-        pf: "../platform/main.roc",
-    }
-    imports ["day05.input" as puzzleInput : Str]
-    provides [solution] to pf
+app [solution] {
+    pf: platform "https://github.com/ostcar/roc-aoc-platform/releases/download/v0.0.2/2Nf8SjH56jqpVp0uor3rqpUxS6ZuCDfeti_nzMn3_T4.tar.br",
+}
+
+import "day05.input" as puzzleInput : Str
 
 solution = \part ->
     when part is
-        Part1 -> part1 puzzleInput
-        Part2 -> part2 puzzleInput
+        Part1 -> part1 puzzleInput |> Str.toUtf8
+        Part2 -> part2 puzzleInput |> Str.toUtf8
 
 exampleInput =
     """
@@ -95,7 +94,7 @@ parseNumbers = \input ->
     |> List.map \s ->
         when Str.toU64 s is
             Ok n -> n
-            Err _ -> crash "invalid number '\(s)'"
+            Err _ -> crash "invalid number '$(s)'"
 
 parseMap : List U64 -> Map
 parseMap = \input ->
@@ -226,7 +225,7 @@ minSeedFromRangeList = \rangeList ->
 mustSucceed = \r, str ->
     when r is
         Ok v -> v
-        _ -> crash "unreachable at \(str)"
+        _ -> crash "unreachable at $(str)"
 
 listFlatten : List (List a) -> List a
 listFlatten = \lst ->

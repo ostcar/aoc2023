@@ -1,19 +1,16 @@
-app "day0"
-    packages {
-        pf: "../platform/main.roc",
-        parser: "https://github.com/lukewilliamboswell/roc-parser/releases/download/0.2.0/dJQSsSmorujhiPNIvJKlQoI92RFIG_JQwUfIxZsCSwE.tar.br",
-    }
-    imports [
-        "day02.input" as puzzleInput : Str,
-        parser.String.{ digits, parseStr, string },
-        parser.Core.{ oneOf, apply, const, skip, maybe, map, oneOrMore },
-    ]
-    provides [solution] to pf
+app [solution] {
+    pf: platform "https://github.com/ostcar/roc-aoc-platform/releases/download/v0.0.2/2Nf8SjH56jqpVp0uor3rqpUxS6ZuCDfeti_nzMn3_T4.tar.br",
+    parser: "https://github.com/lukewilliamboswell/roc-parser/releases/download/0.8.0/PCkJq9IGyIpMfwuW-9hjfXd6x-bHb1_OZdacogpBcPM.tar.br",
+}
+
+import "day02.input" as puzzleInput : Str
+import parser.String exposing [digits, parseStr, string]
+import parser.Parser exposing [oneOf, apply, const, skip, maybe, map, oneOrMore]
 
 solution = \part ->
     when part is
-        Part1 -> part1 puzzleInput
-        Part2 -> part2 puzzleInput
+        Part1 -> part1 puzzleInput |> Str.toUtf8
+        Part2 -> part2 puzzleInput |> Str.toUtf8
 
 exampleInput =
     """
@@ -38,7 +35,7 @@ part1 = \input ->
 parseInput = \input ->
     when parseStr (oneOrMore gameParser) input is
         Ok parsed -> parsed
-        _ -> crash "Invalid input"
+        Err err -> crash "Invalid input: $(err |> Inspect.toStr)"
 
 checkGame = \(gameNr, game) ->
     isOk = List.all

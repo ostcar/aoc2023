@@ -1,11 +1,8 @@
-app "day0"
-    packages {
-        pf: "../platform/main.roc",
-    }
-    imports [
-        "day01.input" as puzzleInput : Str,
-    ]
-    provides [solution] to pf
+app [solution] {
+    pf: platform "https://github.com/ostcar/roc-aoc-platform/releases/download/v0.0.2/2Nf8SjH56jqpVp0uor3rqpUxS6ZuCDfeti_nzMn3_T4.tar.br",
+}
+
+import "day01.input" as puzzleInput : Str
 
 solution = \part ->
     when part is
@@ -20,32 +17,33 @@ examplePart1 =
     treb7uchet
     """
 
-expect part1 examplePart1 == "142"
+expect part1 examplePart1 == ("142" |> Str.toUtf8)
 
-part1 : Str -> Str
 part1 = \input ->
     input
     |> Str.trim
     |> Str.split "\n"
     |> List.map \line ->
-        graphemes = Str.graphemes line
-        mayFirst = List.findFirst graphemes isDigit
-        mayLast = List.findLast graphemes isDigit
+        chars = Str.toUtf8 line
+        mayFirst = List.findFirst chars isDigit
+        mayLast = List.findLast chars isDigit
         when (mayFirst, mayLast) is
             (Ok first, Ok last) ->
-                when (Str.toU32 first, Str.toU32 last) is
-                    (Ok f, Ok l) ->
-                        10 * f + l
-
-                    _ -> crash "found number is not a number..."
+                10 * (first |> toNum) + (last |> toNum)
 
             _ -> 0
-    |> List.walk 0 (\state, elem -> state + elem)
+    |> List.sum
     |> Num.toStr
+    |> Str.toUtf8
 
-isDigit : Str -> Bool
-isDigit = \s ->
-    Str.toU8 s |> Result.isOk
+isDigit : U8 -> Bool
+isDigit = \c ->
+    c >= '0' && c <= '9'
+
+toNum : U8 -> U64
+toNum = \c ->
+    (c - '0')
+    |> Num.toU64
 
 examplePart2 =
     """
@@ -58,65 +56,68 @@ examplePart2 =
     7pqrstsixteen
     """
 
-expect part2 examplePart2 == "281"
+expect part2 examplePart2 == ("281" |> Str.toUtf8)
 
 part2 = \input ->
     input
     |> Str.trim
     |> Str.split "\n"
     |> List.map \line ->
-        first = firstDigit line
-        last = lastDigit line
+        first = firstDigit (line |> Str.toUtf8)
+        last = lastDigit (line |> Str.toUtf8)
         10 * first + last
     |> List.walk 0 (\state, elem -> state + elem)
     |> Num.toStr
+    |> Str.toUtf8
 
-firstDigit : Str -> U32
+firstDigit : List U8 -> U32
 firstDigit = \s ->
-    if Str.startsWithScalar s '1' || Str.startsWith s "one" then
+    first = s |> List.first
+    if first == Ok '1' || List.startsWith s ("one" |> Str.toUtf8) then
         1
-    else if Str.startsWithScalar s '2' || Str.startsWith s "two" then
+    else if first == Ok '2' || List.startsWith s ("two" |> Str.toUtf8) then
         2
-    else if Str.startsWithScalar s '3' || Str.startsWith s "three" then
+    else if first == Ok '3' || List.startsWith s ("three" |> Str.toUtf8) then
         3
-    else if Str.startsWithScalar s '4' || Str.startsWith s "four" then
+    else if first == Ok '4' || List.startsWith s ("four" |> Str.toUtf8) then
         4
-    else if Str.startsWithScalar s '5' || Str.startsWith s "five" then
+    else if first == Ok '5' || List.startsWith s ("five" |> Str.toUtf8) then
         5
-    else if Str.startsWithScalar s '6' || Str.startsWith s "six" then
+    else if first == Ok '6' || List.startsWith s ("six" |> Str.toUtf8) then
         6
-    else if Str.startsWithScalar s '7' || Str.startsWith s "seven" then
+    else if first == Ok '7' || List.startsWith s ("seven" |> Str.toUtf8) then
         7
-    else if Str.startsWithScalar s '8' || Str.startsWith s "eight" then
+    else if first == Ok '8' || List.startsWith s ("eight" |> Str.toUtf8) then
         8
-    else if Str.startsWithScalar s '9' || Str.startsWith s "nine" then
+    else if first == Ok '9' || List.startsWith s ("nine" |> Str.toUtf8) then
         9
-    else if Str.isEmpty s then
+    else if List.isEmpty s then
         crash "empty string"
     else
-        s |> Str.graphemes |> List.dropFirst 1 |> Str.joinWith "" |> firstDigit
+        s |> List.dropFirst 1 |> firstDigit
 
-lastDigit : Str -> U32
+lastDigit : List U8 -> U32
 lastDigit = \s ->
-    if Str.endsWith s "1" || Str.endsWith s "one" then
+    last = s |> List.last
+    if last == Ok '1' || List.endsWith s ("one" |> Str.toUtf8) then
         1
-    else if Str.endsWith s "2" || Str.endsWith s "two" then
+    else if last == Ok '2' || List.endsWith s ("two" |> Str.toUtf8) then
         2
-    else if Str.endsWith s "3" || Str.endsWith s "three" then
+    else if last == Ok '3' || List.endsWith s ("three" |> Str.toUtf8) then
         3
-    else if Str.endsWith s "4" || Str.endsWith s "four" then
+    else if last == Ok '4' || List.endsWith s ("four" |> Str.toUtf8) then
         4
-    else if Str.endsWith s "5" || Str.endsWith s "five" then
+    else if last == Ok '5' || List.endsWith s ("five" |> Str.toUtf8) then
         5
-    else if Str.endsWith s "6" || Str.endsWith s "six" then
+    else if last == Ok '6' || List.endsWith s ("six" |> Str.toUtf8) then
         6
-    else if Str.endsWith s "7" || Str.endsWith s "seven" then
+    else if last == Ok '7' || List.endsWith s ("seven" |> Str.toUtf8) then
         7
-    else if Str.endsWith s "8" || Str.endsWith s "eight" then
+    else if last == Ok '8' || List.endsWith s ("eight" |> Str.toUtf8) then
         8
-    else if Str.endsWith s "9" || Str.endsWith s "nine" then
+    else if last == Ok '9' || List.endsWith s ("nine" |> Str.toUtf8) then
         9
-    else if Str.isEmpty s then
+    else if List.isEmpty s then
         crash "empty string"
     else
-        s |> Str.graphemes |> List.dropLast 1 |> Str.joinWith "" |> lastDigit
+        s |> List.dropLast 1 |> lastDigit

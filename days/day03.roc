@@ -1,14 +1,13 @@
-app "day0"
-    packages {
-        pf: "../platform/main.roc",
-    }
-    imports ["day03.input" as puzzleInput : Str]
-    provides [solution] to pf
+app [solution] {
+    pf: platform "https://github.com/ostcar/roc-aoc-platform/releases/download/v0.0.2/2Nf8SjH56jqpVp0uor3rqpUxS6ZuCDfeti_nzMn3_T4.tar.br",
+}
+
+import "day03.input" as puzzleInput : Str
 
 solution = \part ->
     when part is
-        Part1 -> part1 puzzleInput
-        Part2 -> part2 puzzleInput
+        Part1 -> part1 puzzleInput |> Str.toUtf8
+        Part2 -> part2 puzzleInput |> Str.toUtf8
 
 exampleInput =
     """
@@ -110,7 +109,7 @@ isPartNumber = \number, input ->
             List.any
                 columns
                 (\column ->
-                    List.get (input |> Str.toUtf8) ((line * width + column) |> Num.toNat) |> isSymbol
+                    List.get (input |> Str.toUtf8) ((line * width + column) |> Num.toU64) |> isSymbol
                 )
         )
 
@@ -159,7 +158,7 @@ gearPos = \number, input ->
                 columns
                 []
                 (\cstate, column ->
-                    pos = (line * width + column) |> Num.toNat
+                    pos = (line * width + column) |> Num.toU64
                     if List.get (input |> Str.toUtf8) pos |> isGear then
                         List.append cstate pos
                     else

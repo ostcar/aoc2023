@@ -1,19 +1,16 @@
-app "day0"
-    packages {
-        pf: "../platform/main.roc",
-        parser: "https://github.com/lukewilliamboswell/roc-parser/releases/download/0.2.0/dJQSsSmorujhiPNIvJKlQoI92RFIG_JQwUfIxZsCSwE.tar.br",
-    }
-    imports [
-        "day04.input" as puzzleInput : Str,
-        parser.String.{ digits, parseStr, string, codeunit },
-        parser.Core.{ const, skip, keep, maybe, oneOrMore, sepBy },
-    ]
-    provides [solution] to pf
+app [solution] {
+    pf: platform "https://github.com/ostcar/roc-aoc-platform/releases/download/v0.0.2/2Nf8SjH56jqpVp0uor3rqpUxS6ZuCDfeti_nzMn3_T4.tar.br",
+    parser: "https://github.com/lukewilliamboswell/roc-parser/releases/download/0.8.0/PCkJq9IGyIpMfwuW-9hjfXd6x-bHb1_OZdacogpBcPM.tar.br",
+}
+
+import "day04.input" as puzzleInput : Str
+import parser.String exposing [digits, parseStr, string, codeunit]
+import parser.Parser exposing [const, skip, keep, maybe, oneOrMore, sepBy]
 
 solution = \part ->
     when part is
-        Part1 -> part1 puzzleInput
-        Part2 -> part2 puzzleInput
+        Part1 -> part1 puzzleInput |> Str.toUtf8
+        Part2 -> part2 puzzleInput |> Str.toUtf8
 
 example1Input =
     """
@@ -33,8 +30,8 @@ part1 = \input ->
             |> List.sum
             |> Num.toStr
 
-        Err (ParsingFailure msg) -> "failure \(msg)"
-        Err (ParsingIncomplete msg) -> "incomplete \(msg)"
+        Err (ParsingFailure msg) -> "failure $(msg)"
+        Err (ParsingIncomplete msg) -> "incomplete $(msg)"
 
 expect
     got = part1 example1Input
@@ -100,8 +97,8 @@ part2 = \input ->
             |> List.sum
             |> Num.toStr
 
-        Err (ParsingFailure msg) -> "failure \(msg)"
-        Err (ParsingIncomplete msg) -> "incomplete \(msg)"
+        Err (ParsingFailure msg) -> "failure $(msg)"
+        Err (ParsingIncomplete msg) -> "incomplete $(msg)"
 
 countCards = \input ->
     oneCardEach = List.map input \card -> (1, card)

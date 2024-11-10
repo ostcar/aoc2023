@@ -1,14 +1,13 @@
-app "day"
-    packages {
-        pf: "../platform/main.roc",
-    }
-    imports ["day07.input" as puzzleInput : Str]
-    provides [solution] to pf
+app [solution] {
+    pf: platform "https://github.com/ostcar/roc-aoc-platform/releases/download/v0.0.2/2Nf8SjH56jqpVp0uor3rqpUxS6ZuCDfeti_nzMn3_T4.tar.br",
+}
+
+import "day07.input" as puzzleInput : Str
 
 solution = \part ->
     when part is
-        Part1 -> part1 puzzleInput
-        Part2 -> part2 puzzleInput
+        Part1 -> part1 puzzleInput |> Str.toUtf8
+        Part2 -> part2 puzzleInput |> Str.toUtf8
 
 exampleInput =
     """
@@ -100,7 +99,7 @@ parseInput = \input ->
                     (hand, Ok bid) -> (hand, bid)
                     _ -> crash "invalid number in input"
 
-            _ -> crash "invalid input on \(line)"
+            _ -> crash "invalid input on $(line)"
 
 addType : HandWithBid -> HandWithTypeWithBid
 addType = \(hand, bid) ->
@@ -223,7 +222,7 @@ addTypeWithJoker = \(handWithJoker, bid) ->
                     else
                         OnePair
 
-                _ -> crash "impossible, jokers \(jokers |> Num.toStr)"
+                _ -> crash "impossible, jokers $(jokers |> Num.toStr)"
         else
             kindWithoutJoker
 
